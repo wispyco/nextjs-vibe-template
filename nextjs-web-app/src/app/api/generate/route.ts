@@ -10,7 +10,9 @@ const frameworkPrompts = {
   pure: 'Use Pure CSS for minimalist, responsive design. Include the Pure CSS CDN.'
 };
 
-const HF_ENDPOINT = "https://j3xs3xylb0qqk8oj.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
+// const HF_ENDPOINT = "https://r9y2yx0fsqn7witc.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
+const HF_ENDPOINT = "https://v3z3wstcj82tf1q5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
+//const HF_ENDPOINT = "https://b7jj68wlvucwdoe0.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
 
 export async function POST(req: Request) {
   try {
