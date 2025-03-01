@@ -146,7 +146,7 @@ function HeroGeometric({
         />
       </div>
 
-      <div className="relative z-10 container mx-auto px-4 md:px-6 pt-30 ">
+      <div className="relative z-10 container mx-auto px-4 md:px-6 pt-20 ">
         <motion.div
           custom={0}
           variants={fadeUpVariants}
