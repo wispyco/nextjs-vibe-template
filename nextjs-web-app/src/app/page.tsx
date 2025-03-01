@@ -40,9 +40,9 @@ export default function Home() {
     },
     {
       prompt:
-        "A web app for creating a simple event calendar with a list of events, without user authentication",
-      icon: <FaCalendarAlt className="w-4 h-4" />,
-      label: "Simple Event Calendar",
+        "A web app for displaying a hardware diagram from a given .asc file, context:",
+      icon: <FaRobot className="w-4 h-4" />,
+      label: "Hardware Diagram",
     },
     {
       prompt:

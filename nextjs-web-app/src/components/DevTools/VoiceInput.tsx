@@ -78,7 +78,7 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
           const newTimeoutId = setTimeout(() => {
             if (currentTranscript.trim()) {
               onInput(currentTranscript);
-              // Don't clear transcript or stop listening - keep it active
+              clearTranscript();
             }
           }, 5000);
 
