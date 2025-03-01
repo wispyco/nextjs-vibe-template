@@ -258,6 +258,18 @@ export default function Results() {
     setEditedResults(newResults);
   };
 
+  // Function to handle clicking on a tile
+  const handleTileClick = (index: number) => {
+    setSelectedAppIndex(index);
+    // Scroll to the detailed view
+    setTimeout(() => {
+      document.getElementById('detailed-view')?.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
+  };
+
   return (
     <AuroraBackground>
       <motion.div
@@ -319,29 +331,102 @@ export default function Results() {
           )}
 
           {results.length > 0 && (
-            <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-10rem)]">
-              {/* Left side - App tiles */}
-              <div className="lg:w-1/4 flex flex-col gap-4 h-full overflow-y-auto pr-2">
+            <div className="h-[calc(100vh-10rem)] overflow-y-auto">
+              {/* Grid of all app previews */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {appTitles.map((title, index) => (
-                  <AppTile
+                  <motion.div
                     key={title}
-                    title={title}
-                    isSelected={selectedAppIndex === index}
-                    onClick={() => setSelectedAppIndex(index)}
-                    isLoading={loadingStates[index]}
-                    theme={theme}
-                  />
+                    className={`rounded-lg overflow-hidden border ${
+                      selectedAppIndex === index 
+                        ? theme === "dark" 
+                          ? "border-indigo-500/50 ring-2 ring-indigo-500/30" 
+                          : "border-indigo-500 ring-2 ring-indigo-300/50"
+                        : theme === "dark"
+                          ? "border-gray-700"
+                          : "border-gray-200"
+                    } transition-all duration-200 cursor-pointer`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={() => handleTileClick(index)}
+                  >
+                    <div className={`p-3 ${
+                      theme === "dark" ? "bg-gray-800" : "bg-gray-50"
+                    } flex justify-between items-center`}>
+                      <h3 className={`text-sm font-medium ${
+                        theme === "dark" ? "text-white" : "text-gray-900"
+                      }`}>
+                        {title}
+                      </h3>
+                      {loadingStates[index] && (
+                        <div className="animate-pulse h-2 w-16 bg-gray-400 rounded"></div>
+                      )}
+                    </div>
+                    
+                    <div className="h-[300px]">
+                      <BrowserContainer theme={theme}>
+                        {loadingStates[index] ? (
+                          <LoadingContainer>
+                            <LoadingTitle>Generating</LoadingTitle>
+                            <LoadingBar>
+                              <LoadingProgress
+                                animate={{
+                                  x: ["-100%", "100%"],
+                                }}
+                                transition={{
+                                  repeat: Infinity,
+                                  duration: 1.5,
+                                  ease: "linear",
+                                }}
+                              />
+                            </LoadingBar>
+                            <ShortLoadingBar>
+                              <LoadingProgress
+                                animate={{
+                                  x: ["-100%", "100%"],
+                                }}
+                                transition={{
+                                  repeat: Infinity,
+                                  duration: 2,
+                                  ease: "linear",
+                                  delay: 0.2,
+                                }}
+                              />
+                            </ShortLoadingBar>
+                          </LoadingContainer>
+                        ) : (
+                          <CodePreviewPanel
+                            code={editedResults[index] || ""}
+                            onChange={(newCode) => {
+                              const newResults = [...editedResults];
+                              newResults[index] = newCode;
+                              setEditedResults(newResults);
+                            }}
+                            isLoading={loadingStates[index]}
+                            theme={theme}
+                          />
+                        )}
+                      </BrowserContainer>
+                    </div>
+                  </motion.div>
                 ))}
               </div>
-
-              {/* Right side - Code preview panel */}
+              
+              {/* Expanded view of selected app */}
               <motion.div
-                className="lg:w-3/4 h-full"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
+                id="detailed-view"
+                className="mt-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
               >
-                <div className="h-full ">
+                <h2 className={`text-xl font-semibold mb-4 ${
+                  theme === "dark" ? "text-white" : "text-gray-900"
+                }`}>
+                  {appTitles[selectedAppIndex]} - Detailed View
+                </h2>
+                <div className="h-[500px]">
                   <BrowserContainer theme={theme}>
                     {loadingStates[selectedAppIndex] ? (
                       <LoadingContainer>
