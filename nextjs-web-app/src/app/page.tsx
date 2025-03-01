@@ -11,6 +11,8 @@ import {
   FaUserTie,
   FaCalendarAlt,
   FaStore,
+  FaRobot,
+  FaQuestionCircle,
 } from "react-icons/fa";
 
 export default function Home() {
@@ -48,6 +50,18 @@ export default function Home() {
       icon: <FaStore className="w-4 h-4" />,
       label: "Simple Website for Small Business",
     },
+    {
+      prompt:
+        "A web app for creating a simple chatbot that can answer basic questions about a company's products and services, without user authentication",
+      icon: <FaRobot className="w-4 h-4" />,
+      label: "Simple Chatbot",
+    },
+    {
+      prompt:
+        "A web app for creating a simple quiz or trivia game with multiple choice questions and scoring, without user authentication",
+      icon: <FaQuestionCircle className="w-4 h-4" />,
+      label: "Simple Quiz or Trivia Game",
+    },
   ];
   const [isLoading, setIsLoading] = useState(false);
 
@@ -66,7 +80,7 @@ export default function Home() {
   return (
     <div className="relative min-h-screen w-full">
       <div className="relative z-10">
-        <HeroGeometric badge="10x.Dev" title1="" title2="Faster Apps">
+        <HeroGeometric badge="10x.Dev" title1="" title2="Blaze Agent">
           <div className="w-full max-w-3xl mx-auto">
             <div className="relative bg-[#1a1f2e]/80 backdrop-blur-xl rounded-2xl overflow-hidden border border-[#2a3040] shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]">
               <div className="relative p-6 z-10">

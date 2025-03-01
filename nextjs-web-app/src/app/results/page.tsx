@@ -120,7 +120,7 @@ export default function Results() {
           ? "pure"
           : appTitles[index] === "Creative Approach"
           ? "tailwind"
-          : "patternfly";
+          : "Bulma";
 
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -189,7 +189,7 @@ export default function Results() {
             ? "pure"
             : appTitles[selectedAppIndex] === "Creative Approach"
             ? "tailwind"
-            : "patternfly";
+            : "Bulma";
 
         const response = await fetch("/api/generate", {
           method: "POST",
@@ -216,7 +216,6 @@ export default function Results() {
           newResults[selectedAppIndex] = data.code;
           return newResults;
         });
-
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to update application"
@@ -283,7 +282,7 @@ export default function Results() {
               }`}
             >
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 ">
-                5x.dev
+                10x.Dev
               </span>
             </motion.h1>
             <div className="flex items-center gap-4">

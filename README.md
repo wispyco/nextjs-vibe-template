@@ -1,12 +1,12 @@
-# 5xDev
+# 10xDev
 
 ## Overview
 
-5xDev is a Streamlit-based application that leverages the Groq LLM API with Llama3-70B model to generate four variations of web applications simultaneously. This tool helps developers quickly explore different implementation possibilities for their web application ideas.
+10xDev is a Streamlit-based application that leverages the Groq LLM API with Llama3-70B model to generate four variations of web applications simultaneously. This tool helps developers quickly explore different implementation possibilities for their web application ideas.
 
 ## Purpose
 
-The purpose of 5xDev is to accelerate the development process by providing multiple variations of code solutions for web applications. By generating four different approaches at once, developers can compare and choose the best implementation for their specific needs.
+The purpose of 10xDev is to accelerate the development process by providing multiple variations of code solutions for web applications. By generating four different approaches at once, developers can compare and choose the best implementation for their specific needs.
 
 ## Prerequisites
 

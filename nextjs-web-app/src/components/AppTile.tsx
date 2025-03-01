@@ -58,9 +58,9 @@ const frameworkMap: Record<string, FrameworkInfo> = {
   },
   "Enhanced Version": {
     icon: FaShieldAlt,
-    description: "Enterprise-ready with PatternFly components",
+    description: "Enterprise-ready with Bulma components",
     rightIcon: FaCode,
-    framework: "patternfly",
+    framework: "Bulma",
     iconColor: "#06c",
   },
 };

@@ -14,7 +14,12 @@ interface PromptInputProps {
   currentCode?: string;
 }
 
-export default function PromptInput({ isOpen, onSubmit, isUpdateMode = false, currentCode = "" }: PromptInputProps) {
+export default function PromptInput({
+  isOpen,
+  onSubmit,
+  isUpdateMode = false,
+  currentCode = "",
+}: PromptInputProps) {
   const [prompt, setPrompt] = useState("");
   const { theme } = useTheme();
   const [isPromptOpen] = useAtom(isPromptOpenAtom);
@@ -51,7 +56,11 @@ export default function PromptInput({ isOpen, onSubmit, isUpdateMode = false, cu
                   type="text"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={isUpdateMode ? "Describe how to update the code..." : "Type your prompt..."}
+                  placeholder={
+                    isUpdateMode
+                      ? "Describe how to update the code..."
+                      : "Type your prompt..."
+                  }
                   className={`w-full backdrop-blur-xl border-2 rounded-lg pl-10 pr-4 py-2.5 text-sm shadow-xl transition-all ${
                     theme === "dark"
                       ? "bg-gray-900/40 border-gray-700/50 text-white placeholder-gray-500 focus:border-blue-500/50 focus:ring-blue-500/20"

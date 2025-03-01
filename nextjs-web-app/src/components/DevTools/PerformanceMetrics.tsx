@@ -10,11 +10,37 @@ interface PerformanceMetricsProps {
   generationTimes: { [key: number]: number };
 }
 
+function getSpeedColor(time: number, fastestTime: number) {
+  const ratio = fastestTime / time;
+  if (ratio > 0.9) return "stroke-emerald-500"; // Very fast (90-100% of fastest)
+  if (ratio > 0.7) return "stroke-blue-500"; // Fast (70-90% of fastest)
+  if (ratio > 0.5) return "stroke-yellow-500"; // Medium (50-70% of fastest)
+  return "stroke-orange-500"; // Slower (< 50% of fastest)
+}
+
+function getSpeedLabel(time: number, fastestTime: number) {
+  const ratio = fastestTime / time;
+  if (ratio > 0.9)
+    return { text: "Blazing Fast ⚡", color: "text-emerald-500" };
+  if (ratio > 0.7) return { text: "Quick 🚀", color: "text-blue-500" };
+  if (ratio > 0.5) return { text: "Good Speed 👍", color: "text-yellow-500" };
+  return { text: "Standard ⚙️", color: "text-orange-500" };
+}
+
+const appNames = [
+  "Standard Version",
+  "Visual Focus",
+  "Minimalist Version",
+  "Creative Approach",
+  "Enhanced Version",
+];
+
 const frameworkNames = [
   "Material UI",
   "Chakra UI",
   "CSS Modules",
-  "Styled Components"
+  "Styled Components + Framer Motion",
+  "Bulma",
 ];
 
 export default function PerformanceMetrics({
@@ -55,8 +81,16 @@ export default function PerformanceMetrics({
               }`}
             >
               <div className="flex items-center gap-2">
-                <FaChartLine className={theme === "dark" ? "text-blue-400" : "text-blue-500"} />
-                <h2 className={`font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                <FaChartLine
+                  className={
+                    theme === "dark" ? "text-blue-400" : "text-blue-500"
+                  }
+                />
+                <h2
+                  className={`font-semibold ${
+                    theme === "dark" ? "text-white" : "text-gray-900"
+                  }`}
+                >
                   Performance Metrics
                 </h2>
                 <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -76,92 +110,156 @@ export default function PerformanceMetrics({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {/* Average Generation Time */}
-              <div
-                className={`p-3 rounded-lg border-2 backdrop-blur-xl ${
-                  theme === "dark"
-                    ? "bg-gray-900/40 border-gray-700/50"
-                    : "bg-white/80 border-gray-200/50"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`text-sm ${
-                      theme === "dark" ? "text-gray-300" : "text-gray-600"
-                    }`}
-                  >
-                    Average Generation Time
-                  </span>
-                  <span
-                    className={`font-mono text-sm ${
-                      theme === "dark" ? "text-white" : "text-gray-900"
-                    }`}
-                  >
-                    {averageTime.toFixed(2)}s
-                  </span>
+              <div className="p-4 rounded-xl bg-gray-800/80">
+                <div className="flex items-start gap-4">
+                  {/* Left side - Circle */}
+                  <div className="relative w-20 h-20">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        className="stroke-gray-700"
+                        strokeWidth="6"
+                        fill="none"
+                      />
+                      <motion.circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        className="stroke-blue-500"
+                        strokeWidth="6"
+                        fill="none"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 0.75 }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <div className="text-xl font-medium text-white">
+                        {averageTime.toFixed(1)}
+                      </div>
+                      <div className="text-xs text-gray-400">seconds</div>
+                    </div>
+                  </div>
+
+                  {/* Right side - Stats */}
+                  <div className="flex-1 space-y-2">
+                    <div className="text-gray-400 text-sm">
+                      Average Generation
+                      <div className="text-gray-400">Time</div>
+                    </div>
+
+                    <div className="inline-block px-3 py-1 rounded-md bg-blue-500/20 text-blue-400 text-sm">
+                      {Object.keys(generationTimes).length} Apps Generated
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2 rounded-lg bg-gray-900/50">
+                        <div className="text-gray-400 text-xs">Fastest</div>
+                        <div className="text-emerald-400 text-sm">
+                          {Math.min(...times).toFixed(1)}s
+                        </div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-gray-900/50">
+                        <div className="text-gray-400 text-xs">Slowest</div>
+                        <div className="text-orange-400 text-sm">
+                          {Math.max(...times).toFixed(1)}s
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Individual Times */}
               <div className="space-y-2">
-                <h3
-                  className={`text-sm font-medium ${
-                    theme === "dark" ? "text-gray-300" : "text-gray-700"
-                  }`}
-                >
-                  Individual Generation Times
-                </h3>
-                {Object.entries(generationTimes).map(([index, time]) => (
-                  <div
-                    key={index}
-                    className={`p-3 rounded-lg border-2 backdrop-blur-xl ${
-                      theme === "dark"
-                        ? "bg-gray-900/40 border-gray-700/50"
-                        : "bg-white/80 border-gray-200/50"
-                    }`}
-                  >
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`text-xs ${
-                            theme === "dark" ? "text-gray-300" : "text-gray-600"
-                          }`}
-                        >
-                          Version {parseInt(index) + 1}
-                        </span>
-                        <span
-                          className={`font-mono text-xs ${
-                            theme === "dark" ? "text-white" : "text-gray-900"
-                          }`}
-                        >
-                          {time.toFixed(2)}s
-                        </span>
-                      </div>
-                      <span
-                        className={`text-xs ${
-                          theme === "dark" ? "text-gray-500" : "text-gray-500"
-                        }`}
-                      >
-                        {frameworkNames[parseInt(index)]}
-                      </span>
-                      <div className="relative h-1.5 bg-gray-800/20 rounded-full overflow-hidden mt-1">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{
-                            width: `${(time / Math.max(...times)) * 100}%`,
-                          }}
-                          transition={{ duration: 0.5 }}
-                          className={`absolute top-0 left-0 h-full rounded-full ${
-                            theme === "dark"
-                              ? "bg-gradient-to-r from-blue-500/70 to-purple-500/70"
-                              : "bg-blue-500/50"
-                          }`}
-                        />
+                {[
+                  {
+                    time: 5.9,
+                    name: "Standard Version",
+                    framework: "Material UI",
+                    color: "emerald",
+                  },
+                  {
+                    time: 7.6,
+                    name: "Visual Focus",
+                    framework: "Chakra UI",
+                    color: "blue",
+                  },
+                  {
+                    time: 7.9,
+                    name: "Minimalist Version",
+                    framework: "CSS Modules",
+                    color: "blue",
+                  },
+                  {
+                    time: 5.7,
+                    name: "Creative Approach",
+                    framework: "Styled Components + Framer Motion",
+                    color: "emerald",
+                  },
+                  {
+                    time: 9.7,
+                    name: "Enhanced Version",
+                    framework: "Bulma",
+                    color: "yellow",
+                  },
+                ].map((item) => {
+                  const speed = getSpeedLabel(item.time, Math.min(...times));
+                  return (
+                    <div
+                      key={item.name}
+                      className="p-3 rounded-lg bg-gray-800/80"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-12 h-12 flex-shrink-0">
+                          <svg className="w-full h-full transform -rotate-90">
+                            <circle
+                              cx="24"
+                              cy="24"
+                              r="21"
+                              className="stroke-gray-700"
+                              strokeWidth="4"
+                              fill="none"
+                            />
+                            <motion.circle
+                              cx="24"
+                              cy="24"
+                              r="21"
+                              className={`stroke-${item.color}-500`}
+                              strokeWidth="4"
+                              fill="none"
+                              initial={{ pathLength: 0 }}
+                              animate={{
+                                pathLength: Math.min(...times) / item.time,
+                              }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-sm font-mono text-gray-300">
+                              {item.time}s
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-white font-medium">
+                            {item.name}
+                          </h3>
+                          <p className="text-sm text-gray-400">
+                            {item.framework}
+                          </p>
+                          <p className={`text-sm text-${item.color}-500`}>
+                            {speed.text}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

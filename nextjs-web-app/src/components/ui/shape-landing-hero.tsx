@@ -146,7 +146,7 @@ function HeroGeometric({
         />
       </div>
 
-      <div className="relative z-10 container mx-auto px-4 md:px-6 pt-20">
+      <div className="relative z-10 container mx-auto px-4 md:px-6 pt-30 ">
         <div className="max-w-3xl mx-auto text-center">
           <motion.div
             custom={1}
@@ -187,9 +187,9 @@ function HeroGeometric({
             initial="hidden"
             animate="visible"
           >
-            <p className="text-base sm:text-lg md:text-xl text-white/40 mb-8 font-light tracking-wide max-w-xl mx-auto px-4">
-              Unleash your creativity! Describe your dream web application
-              below, and our AI will bring it to life in <br />
+            <p className="text-base sm:text-lg md:text-xl text-white/60 mb-8 font-light tracking-wide max-w-xl mx-auto px-4">
+              Describe your dream web application below, and our AI will bring
+              it to life in{" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 ">
                 5 different ways!
               </span>

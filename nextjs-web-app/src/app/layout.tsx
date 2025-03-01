@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "5xDev - Web App Generator",
+  title: "10xDev - Web App Generator",
   description:
     "Generate four different web applications from a single prompt using Groq's LLama3-70B model",
   icons: {
