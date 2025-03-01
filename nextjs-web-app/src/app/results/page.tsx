@@ -12,6 +12,7 @@ import { useTheme } from "@/context/ThemeContext";
 import ThemeToggle from "@/components/ThemeToggle";
 import PromptInput from "@/components/DevTools/PromptInput";
 import PerformanceMetrics from "@/components/DevTools/PerformanceMetrics";
+import VoiceInput from "@/components/DevTools/VoiceInput";
 import styled from "styled-components";
 
 const LoadingContainer = styled.div`
@@ -66,6 +67,7 @@ export default function Results() {
   const [generationTimes, setGenerationTimes] = useState<{
     [key: number]: number;
   }>({});
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const { theme } = useTheme();
 
   const variations = [
@@ -235,6 +237,10 @@ export default function Results() {
     }
   };
 
+  const handleVoiceInput = (text: string) => {
+    handleNewPrompt(text, true);
+  };
+
   useEffect(() => {
     const prompt = searchParams.get("prompt");
     if (!prompt) {
@@ -393,6 +399,9 @@ export default function Results() {
         onClose={() => setIsMetricsOpen(false)}
         generationTimes={generationTimes}
       />
+      {isVoiceEnabled && (
+        <VoiceInput onInput={handleVoiceInput} theme={theme} />
+      )}
     </AuroraBackground>
   );
 }
