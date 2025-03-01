@@ -419,7 +419,7 @@ export default function Results() {
                 }`}>
                   {appTitles[selectedAppIndex]} - Detailed View
                 </h2>
-                <div className="h-[600px]">
+                <div className="h-[500px]">
                   <BrowserContainer theme={theme} title={`${appTitles[selectedAppIndex]} - Detailed View`}>
                     {loadingStates[selectedAppIndex] ? (
                       <LoadingContainer>
@@ -451,14 +451,12 @@ export default function Results() {
                         </ShortLoadingBar>
                       </LoadingContainer>
                     ) : (
-                      <div className="transform scale-[0.85] w-[118%] h-[118%] origin-center">
-                        <CodePreviewPanel
-                          code={editedResults[selectedAppIndex] || ""}
-                          onChange={handleCodeChange}
-                          isLoading={loadingStates[selectedAppIndex]}
-                          theme={theme}
-                        />
-                      </div>
+                      <CodePreviewPanel
+                        code={editedResults[selectedAppIndex] || ""}
+                        onChange={handleCodeChange}
+                        isLoading={loadingStates[selectedAppIndex]}
+                        theme={theme}
+                      />
                     )}
                   </BrowserContainer>
                 </div>
