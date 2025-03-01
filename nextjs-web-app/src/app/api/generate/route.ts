@@ -1,61 +1,97 @@
-import { OpenAI } from 'openai';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { NextResponse } from 'next/server';
+
+const frameworkPrompts = {
+  tailwind: 'Use Tailwind CSS for styling with modern utility classes. Include the Tailwind CDN.',
+  materialize: 'Use Materialize CSS framework for a Material Design look. Include the Materialize CDN.',
+  bootstrap: 'Use Bootstrap 5 for responsive components and layout. Include the Bootstrap CDN.',
+  patternfly: 'Use PatternFly 4 for enterprise-grade UI components. Include the PatternFly CDN.',
+  bulma: 'Use Bulma CSS framework for a modern look. Include the Bulma CDN.',
+  pure: 'Use Pure CSS for minimalist, responsive design. Include the Pure CSS CDN.'
+};
+
+// Initialize AWS Bedrock client
+const client = new BedrockRuntimeClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
 export async function POST(req: Request) {
   try {
-    const { prompt, variation } = await req.json();
+    const { prompt, variation, framework, existingCode, isUpdate } = await req.json();
     
-    const groqApiKey = process.env.GROQ_API_KEY;
-    if (!groqApiKey) {
-      return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      return NextResponse.json({ error: 'AWS credentials not configured' }, { status: 500 });
     }
 
-    const client = new OpenAI({
-      apiKey: groqApiKey,
-      baseURL: 'https://api.groq.com/openai/v1',
-    });
+    const frameworkInstructions = framework ? frameworkPrompts[framework as keyof typeof frameworkPrompts] : '';
 
-    const fullPrompt = `Create a well-structured, modern web application:
+    const fullPrompt = isUpdate 
+      ? `You are an HTML code updater. Given the following existing HTML code and update request, modify the code according to the request while maintaining the existing structure and styling.
 
-Instructions:
-1. Base functionality: ${prompt}
-2. Variation: ${variation}
+Existing code:
+${existingCode}
 
-Technical Requirements:
-- Create a single HTML file with clean, indented code structure
-- Organize the code in this order:
-  1. <!DOCTYPE html> and meta tags
-  2. <title> and other head elements
-  3. CSS styles in a <style> tag
-  4. HTML body with semantic markup
-  5. JavaScript in a <script> tag at the end of body
-- Use proper HTML5 semantic elements
-- Include clear spacing between sections
-- Add descriptive comments for each major component
-- Ensure responsive design with mobile-first approach
-- Use modern ES6+ JavaScript features
-- Keep the code modular and well-organized
-- Ensure all interactive elements have proper styling states (hover, active, etc.)
+Update request:
+${prompt}
 
-Additional Notes:
-- The code must be complete and immediately runnable
-- All CSS and JavaScript should be included inline
-- Code must work properly when rendered in an iframe
-- Focus on clean, maintainable code structure
-- Return ONLY the HTML file content without any explanations
+Requirements:
+- Preserve the existing framework and styling
+- Keep the same overall structure
+- Only modify what's necessary based on the update request
+- Ensure the code remains complete and self-contained
+- Maintain all necessary CSS and JS
 
-Format the code with proper indentation and spacing for readability.`;
+IMPORTANT: Output only the updated HTML code with no other text.`
+      : `You are an HTML generator. Respond with ONLY valid HTML code. No introduction, no explanation, no markdown formatting.
 
-    const response = await client.chat.completions.create({
-      model: 'mixtral-8x7b-32768',
-      messages: [{ role: 'user', content: fullPrompt }],
-      temperature: 0.7,
-      max_tokens: 2048,
-    });
+Requirements:
+${prompt}
+${variation ? `Variation: ${variation}\n` : ''}${frameworkInstructions ? `Framework: ${frameworkInstructions}\n` : ''}
 
-    return NextResponse.json({ code: response.choices[0].message.content });
+Your response must:
+- Start with <!DOCTYPE html>
+- Include all necessary CSS and JS inline
+- Be complete and self-contained
+- Work in an iframe
+- Use semantic HTML5 elements
+- Be responsive
+- Follow framework-specific best practices
+
+IMPORTANT: Output only the HTML code with no other text.`;
+
+    const input = {
+      modelId: 'anthropic.claude-3-haiku-20240307-v1:0',
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify({
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: 4096,
+        messages: [
+          {
+            role: 'user',
+            content: fullPrompt,
+          },
+        ],
+      }),
+    };
+
+    const command = new InvokeModelCommand(input);
+    const response = await client.send(command);
+
+    // Parse the response
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    const generatedCode = responseBody.content[0].text.trim();
+
+    return NextResponse.json({ code: generatedCode });
   } catch (error) {
-    console.error('Error generating code:', error);
-    return NextResponse.json({ error: 'Failed to generate code' }, { status: 500 });
+    console.error('Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to generate code' },
+      { status: 500 }
+    );
   }
 }

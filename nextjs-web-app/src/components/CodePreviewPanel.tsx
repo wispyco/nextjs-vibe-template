@@ -27,59 +27,55 @@ export default function CodePreviewPanel({ code, title, onCodeChange }: CodePrev
   };
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-lg shadow-sm">
-      <div className="border-b border-gray-200">
-        <div className="flex items-center justify-between px-4 py-2">
-          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setActiveTab('preview')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
-                activeTab === 'preview'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Preview
-            </button>
-            <button
-              onClick={() => setActiveTab('code')}
-              className={`px-3 py-1 rounded-md text-sm font-medium ${
-                activeTab === 'code'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Code
-            </button>
-          </div>
-        </div>
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-end px-4 py-2 space-x-2">
+        <button
+          onClick={() => setActiveTab('preview')}
+          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'preview'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:text-white'
+          }`}
+        >
+          Preview
+        </button>
+        <button
+          onClick={() => setActiveTab('code')}
+          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'code'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:text-white'
+          }`}
+        >
+          Code
+        </button>
       </div>
-      <div className="flex-1 overflow-hidden">
+
+      <div className="flex-1 min-h-0">
         {activeTab === 'preview' ? (
-          <div className="h-full" key={previewKey}>
+          <div key={previewKey} className="h-full">
             <iframe
               srcDoc={editedCode}
-              className="w-full h-full border-0"
-              sandbox="allow-scripts"
+              className="w-full h-full border-0 bg-white"
               title="Preview"
             />
           </div>
         ) : (
-          <div className="h-full w-full">
+          <div className="h-full">
             <MonacoEditor
               height="100%"
               defaultLanguage="html"
+              theme="vs-dark"
               value={editedCode}
               onChange={handleCodeChange}
-              theme="vs-light"
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,
-                wordWrap: 'on',
                 lineNumbers: 'on',
-                automaticLayout: true,
+                roundedSelection: false,
                 scrollBeyondLastLine: false,
+                readOnly: false,
+                automaticLayout: true,
               }}
             />
           </div>
