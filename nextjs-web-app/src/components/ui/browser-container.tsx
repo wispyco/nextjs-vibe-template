@@ -19,13 +19,14 @@ const Container = styled(motion.div)<{ theme: "light" | "dark" }>`
 
 const Header = styled.div`
   background: #1a1b1e;
-  padding: 12px 16px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid #2c2e33;
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
+  justify-content: space-between;
 `;
 
 const CircleContainer = styled.div`
@@ -33,6 +34,7 @@ const CircleContainer = styled.div`
   align-items: center;
   gap: 8px;
   padding-left: 4px;
+  min-width: 60px;
 `;
 
 const Circle = styled.div<{ color: string }>`
@@ -49,8 +51,20 @@ const Circle = styled.div<{ color: string }>`
   }
 `;
 
+const Title = styled.div<{ theme: "light" | "dark" }>`
+  color: ${(props) => (props.theme === "dark" ? "#e2e8f0" : "#f8fafc")};
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.8;
+  text-align: center;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
 const Content = styled.div<{ theme: "light" | "dark" }>`
-  padding: 24px;
+  padding: 0;
   flex: 1;
   overflow: auto;
   height: 100%;
@@ -60,11 +74,13 @@ const Content = styled.div<{ theme: "light" | "dark" }>`
 interface BrowserContainerProps {
   children: React.ReactNode;
   theme: "light" | "dark";
+  title?: string;
 }
 
 export const BrowserContainer = ({
   children,
   theme,
+  title,
 }: BrowserContainerProps) => {
   return (
     <Container
@@ -79,6 +95,8 @@ export const BrowserContainer = ({
           <Circle color="#FFBD2E" />
           <Circle color="#28C840" />
         </CircleContainer>
+        {title && <Title theme={theme}>{title}</Title>}
+        <div style={{ width: '60px' }}></div> {/* Spacer for balance */}
       </Header>
       <Content theme={theme}>{children}</Content>
     </Container>
