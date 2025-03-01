@@ -10,7 +10,7 @@ const frameworkPrompts = {
   pure: 'Use Pure CSS for minimalist, responsive design. Include the Pure CSS CDN.'
 };
 
-const HF_ENDPOINT = "https://j3xs3xylb0qqk8oj.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
+const HF_ENDPOINT = "https://v3z3wstcj82tf1q5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
 
 export async function POST(req: Request) {
   try {
@@ -32,6 +32,8 @@ Your HTML must:
 5. Be responsive and accessible
 6. Include all necessary CSS inline in a <style> tag
 7. Follow modern web development best practices`;
+    
+    const colorInstruction = `The interface should be colorful and visually appealing, incorporating modern color palettes and a gradient effect for the background. The app design should be clean, easy to navigate, and responsive on different devices. Ensure that the app provides a fun and engaging user experience by using contemporary design elements like smooth transitions, rounded buttons, and subtle animations. Make sure the overall feel is fresh and modern. and modern font type` 
 
     const userPrompt = isUpdate 
       ? `Update this HTML code according to this request while maintaining the structure and styling:
@@ -40,7 +42,7 @@ Existing code:
 ${existingCode}
 
 Update request:
-${prompt}
+${prompt} 
 
 Requirements:
 - Preserve the existing framework and styling
@@ -49,7 +51,7 @@ Requirements:
 - Ensure the code remains complete and self-contained
 - Maintain all necessary CSS and JS`
       : `Create a complete HTML page with the following requirements:
-${prompt}
+${prompt} +  color instruction: ${colorInstruction}
 ${variation ? `Variation: ${variation}\n` : ''}${frameworkInstructions ? `Framework: ${frameworkInstructions}\n` : ''}`;
 
     const response = await fetch(HF_ENDPOINT, {
