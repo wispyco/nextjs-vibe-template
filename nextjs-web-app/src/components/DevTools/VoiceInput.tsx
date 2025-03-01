@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaRobot } from "react-icons/fa";
+import { FaMicrophone } from "react-icons/fa";
 import styled from "styled-components";
 
 const VoiceButton = styled(motion.button)`
@@ -164,7 +164,7 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
           opacity: isVoiceSupported ? 1 : 0.5 
         }}
       >
-        <FaRobot
+        <FaMicrophone
           className={`w-5 h-5 icon ${
             !isVoiceSupported
               ? "text-gray-400"
