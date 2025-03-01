@@ -92,9 +92,9 @@ if "user_prompt" not in st.session_state:
 # User input
 with st.form(key="app_form"):
     user_prompt = st.text_area(
-        "Describe the web application you want to create:",
+        "What web app do you want to create?",
         placeholder="E.g., A to-do list app with local storage and dark mode",
-        height=100,
+        height=80,
         key="user_prompt"
     )
     
@@ -127,7 +127,7 @@ if submit_button and user_prompt and groq_api_key:
     with col1:
         st.markdown("<div class='app-container'>", unsafe_allow_html=True)
         st.markdown("### App 1 - Standard Version")
-        with st.expander("View Code", expanded=True):
+        with st.expander("View Code", expanded=False):
             st.code(results[0], language="html")
             
         # Render the actual web app
@@ -138,7 +138,7 @@ if submit_button and user_prompt and groq_api_key:
     with col2:
         st.markdown("<div class='app-container'>", unsafe_allow_html=True)
         st.markdown("### App 2 - Visual Focus")
-        with st.expander("View Code", expanded=True):
+        with st.expander("View Code", expanded=False):
             st.code(results[1], language="html")
             
         # Render the actual web app
@@ -151,7 +151,7 @@ if submit_button and user_prompt and groq_api_key:
     with col3:
         st.markdown("<div class='app-container'>", unsafe_allow_html=True)
         st.markdown("### App 3 - Minimalist Version")
-        with st.expander("View Code", expanded=True):
+        with st.expander("View Code", expanded=False):
             st.code(results[2], language="html")
             
         # Render the actual web app
@@ -162,7 +162,7 @@ if submit_button and user_prompt and groq_api_key:
     with col4:
         st.markdown("<div class='app-container'>", unsafe_allow_html=True)
         st.markdown("### App 4 - Creative Approach")
-        with st.expander("View Code", expanded=True):
+        with st.expander("View Code", expanded=False):
             st.code(results[3], language="html")
             
         # Render the actual web app
@@ -174,10 +174,8 @@ if submit_button and user_prompt and groq_api_key:
     
     st.markdown("""
     ### 💡 Next Steps
-    - Copy the code you like best
-    - Save it to a file with the appropriate extension (.html)
-    - Run or deploy your chosen application
-    - You can see the live preview of each app above!
+    - Try out the live previews above
+    - Click "View Code" to see and copy the code you like best
     """)
 elif submit_button and not groq_api_key:
     st.error("Please set your GROQ_API_KEY environment variable to use this app.")
