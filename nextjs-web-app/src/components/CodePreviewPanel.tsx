@@ -9,6 +9,7 @@ interface CodePreviewPanelProps {
   onChange?: (newCode: string) => void;
   isLoading?: boolean;
   theme: "light" | "dark";
+  deployButton?: React.ReactNode;
 }
 
 export default function CodePreviewPanel({ 
@@ -16,7 +17,8 @@ export default function CodePreviewPanel({
   title, 
   onChange, 
   isLoading = false,
-  theme 
+  theme,
+  deployButton
 }: CodePreviewPanelProps) {
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [editedCode, setEditedCode] = useState(code);
@@ -37,7 +39,7 @@ export default function CodePreviewPanel({
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between px-4 py-2">
-        <div className="w-20"></div> {/* Spacer for deploy button */}
+        <div>{deployButton}</div>
         <div className="space-x-2">
           <button
             onClick={() => setActiveTab('preview')}

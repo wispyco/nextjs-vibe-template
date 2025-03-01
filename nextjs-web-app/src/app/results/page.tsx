@@ -375,17 +375,17 @@ export default function Results() {
                       </LoadingContainer>
                     ) : (
                       <div className="relative h-full">
-                        <div className="absolute top-2 right-2 z-10">
-                          <MockDeployButton 
-                            code={editedResults[selectedAppIndex] || ""} 
-                            theme={theme} 
-                          />
-                        </div>
                         <CodePreviewPanel
                           code={editedResults[selectedAppIndex] || ""}
                           onChange={handleCodeChange}
                           isLoading={loadingStates[selectedAppIndex]}
                           theme={theme}
+                          deployButton={
+                            <MockDeployButton 
+                              code={editedResults[selectedAppIndex] || ""} 
+                              theme={theme} 
+                            />
+                          }
                         />
                       </div>
                     )}
