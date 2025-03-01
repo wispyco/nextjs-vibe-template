@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaRobot } from "react-icons/fa";
+import { FaMicrophone } from "react-icons/fa";
 import styled from "styled-components";
 
 const VoiceButton = styled(motion.button)`
@@ -77,9 +77,8 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
           // Set new timeout
           const newTimeoutId = setTimeout(() => {
             if (currentTranscript.trim()) {
-              setTranscript(""); // Clear immediately before sending
               onInput(currentTranscript);
-              stopListening();
+              // Don't clear transcript or stop listening - keep it active
             }
           }, 5000);
 
@@ -150,6 +149,10 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
     }
   };
 
+  const clearTranscript = () => {
+    setTranscript("");
+  };
+
   return (
     <>
       <VoiceButton
@@ -164,7 +167,7 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
           opacity: isVoiceSupported ? 1 : 0.5 
         }}
       >
-        <FaRobot
+        <FaMicrophone
           className={`w-5 h-5 icon ${
             !isVoiceSupported
               ? "text-gray-400"
@@ -175,7 +178,7 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
         />
       </VoiceButton>
       <AnimatePresence mode="wait">
-        {isListening && transcript && (
+        {isListening && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -188,7 +191,7 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
               }`}
             >
               <p className="text-center" style={{ direction: 'rtl', textAlign: 'left' }}>
-                {truncateFromStart(transcript, 75)}
+                {transcript ? truncateFromStart(transcript, 75) : "Listening..."}
               </p>
             </div>
           </motion.div>
