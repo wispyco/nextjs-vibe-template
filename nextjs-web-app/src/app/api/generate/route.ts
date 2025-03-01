@@ -33,7 +33,7 @@ Your HTML must:
 6. Include all necessary CSS inline in a <style> tag
 7. Follow modern web development best practices`;
     
-    const colorInstruction = `The interface should be colorful and visually appealing, incorporating modern color palettes and a gradient effect for the background. The app design should be clean, easy to navigate, and responsive on different devices. Ensure that the app provides a fun and engaging user experience by using contemporary design elements like smooth transitions, rounded buttons, and subtle animations. Make sure the overall feel is fresh and modern. and modern font type` 
+    const colorInstruction = `The UI should be colorful and visually appealing, incorporating modern color palettes or a gradient effect for the background. The app design should be clean, easy to navigate, and responsive on different devices. Ensure that the app provides a fun and engaging user experience by using contemporary design elements like smooth transitions, rounded buttons, and subtle animations. Make sure the overall feel is fresh and modern. and modern font type and app should take full height of the screen`; 
 
     const userPrompt = isUpdate 
       ? `Update this HTML code according to this request while maintaining the structure and styling:
