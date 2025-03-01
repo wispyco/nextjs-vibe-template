@@ -374,8 +374,8 @@ export default function Results() {
                         </ShortLoadingBar>
                       </LoadingContainer>
                     ) : (
-                      <>
-                        <div className="flex justify-end mb-2">
+                      <div className="relative h-full">
+                        <div className="absolute top-2 right-2 z-10">
                           <MockDeployButton 
                             code={editedResults[selectedAppIndex] || ""} 
                             theme={theme} 
@@ -387,7 +387,7 @@ export default function Results() {
                           isLoading={loadingStates[selectedAppIndex]}
                           theme={theme}
                         />
-                      </>
+                      </div>
                     )}
                   </BrowserContainer>
                 </div>
