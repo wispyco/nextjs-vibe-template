@@ -1,7 +1,7 @@
 import streamlit as st
-import litellm
 import os
 from dotenv import load_dotenv
+from openai import OpenAI
 import time
 
 # Load environment variables from .env file (if any)
@@ -45,8 +45,14 @@ if not groq_api_key:
     st.warning("⚠️ GROQ_API_KEY environment variable not found. Please set it to use this app.")
 
 def generate_web_app(prompt, variation_prompt=""):
-    """Generate web app code using litellm to query Groq API"""
+    """Generate web app code using Groq API via OpenAI client"""
     try:
+        # Initialize OpenAI client with Groq's base URL
+        client = OpenAI(
+            api_key=groq_api_key,
+            base_url="https://api.groq.com/openai/v1"
+        )
+        
         full_prompt = f"""Create a simple, self-contained web application based on this prompt: 
         {prompt} 
         {variation_prompt}
@@ -58,12 +64,11 @@ def generate_web_app(prompt, variation_prompt=""):
         Return ONLY the code without explanations.
         """
         
-        response = litellm.completion(
-            model="groq/llama-3.1-8b-instant",
+        response = client.chat.completions.create(
+            model="mixtral-8x7b-32768",
             messages=[{"role": "user", "content": full_prompt}],
-            api_key=groq_api_key,
             temperature=0.7,
-            max_tokens=2048,
+            max_tokens=2048
         )
         
         return response.choices[0].message.content
@@ -77,12 +82,17 @@ Generate four different web applications from a single prompt using Groq's LLama
 Enter your idea below and see what gets created!
 """)
 
+# Initialize session state
+if "user_prompt" not in st.session_state:
+    st.session_state.user_prompt = ""
+
 # User input
 with st.form(key="app_form"):
     user_prompt = st.text_area(
         "Describe the web application you want to create:",
         placeholder="E.g., A to-do list app with local storage and dark mode",
-        height=100
+        height=100,
+        key="user_prompt"
     )
     
     submit_button = st.form_submit_button(label="🚀 Generate 4 Web Apps")
@@ -157,4 +167,3 @@ elif submit_button and not user_prompt:
 # Footer
 st.markdown("---")
 st.markdown("Made with ❤️ using Streamlit and Groq's LLama3-70B")
-
