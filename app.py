@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 import time
+import streamlit.components.v1 as components
 
 # Load environment variables from .env file (if any)
 load_dotenv()
@@ -57,9 +58,11 @@ def generate_web_app(prompt, variation_prompt=""):
         {prompt} 
         {variation_prompt}
         
-        The code should be complete and runnable as a single file.
+        The code should be complete and runnable as a single HTML file.
         Focus on creating a working prototype that demonstrates the core functionality.
         Use modern web technologies and best practices.
+        Include all necessary CSS and JavaScript directly in the HTML file.
+        Make sure all functionality works when rendered in an iframe.
         Keep the code concise but include helpful comments.
         Return ONLY the code without explanations.
         """
@@ -118,37 +121,53 @@ if submit_button and user_prompt and groq_api_key:
     
     # Display the results in a 2x2 grid
     st.subheader("📊 Generated Web Apps")
-    
+        
     # First row
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("<div class='app-container'>", unsafe_allow_html=True)
         st.markdown("### App 1 - Standard Version")
         with st.expander("View Code", expanded=True):
-            st.code(results[0], language="python")
+            st.code(results[0], language="html")
+            
+        # Render the actual web app
+        st.markdown("#### Live Preview")
+        components.html(results[0], height=400, scrolling=True)
         st.markdown("</div>", unsafe_allow_html=True)
-        
+            
     with col2:
         st.markdown("<div class='app-container'>", unsafe_allow_html=True)
         st.markdown("### App 2 - Visual Focus")
         with st.expander("View Code", expanded=True):
-            st.code(results[1], language="python")
+            st.code(results[1], language="html")
+            
+        # Render the actual web app
+        st.markdown("#### Live Preview")
+        components.html(results[1], height=400, scrolling=True)
         st.markdown("</div>", unsafe_allow_html=True)
-        
+            
     # Second row
     col3, col4 = st.columns(2)
     with col3:
         st.markdown("<div class='app-container'>", unsafe_allow_html=True)
         st.markdown("### App 3 - Minimalist Version")
         with st.expander("View Code", expanded=True):
-            st.code(results[2], language="python")
+            st.code(results[2], language="html")
+            
+        # Render the actual web app
+        st.markdown("#### Live Preview")
+        components.html(results[2], height=400, scrolling=True)
         st.markdown("</div>", unsafe_allow_html=True)
-        
+            
     with col4:
         st.markdown("<div class='app-container'>", unsafe_allow_html=True)
         st.markdown("### App 4 - Creative Approach")
         with st.expander("View Code", expanded=True):
-            st.code(results[3], language="python")
+            st.code(results[3], language="html")
+            
+        # Render the actual web app
+        st.markdown("#### Live Preview")
+        components.html(results[3], height=400, scrolling=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
     st.success("✅ All applications generated successfully!")
@@ -156,8 +175,9 @@ if submit_button and user_prompt and groq_api_key:
     st.markdown("""
     ### 💡 Next Steps
     - Copy the code you like best
-    - Save it to a file with the appropriate extension (.html, .py, etc.)
+    - Save it to a file with the appropriate extension (.html)
     - Run or deploy your chosen application
+    - You can see the live preview of each app above!
     """)
 elif submit_button and not groq_api_key:
     st.error("Please set your GROQ_API_KEY environment variable to use this app.")
