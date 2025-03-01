@@ -54,13 +54,13 @@ const ShortLoadingBar = styled(LoadingBar)`
 export default function Results() {
   const searchParams = useSearchParams();
   const [loadingStates, setLoadingStates] = useState<boolean[]>(
-    new Array(5).fill(true)
+    new Array(6).fill(true)
   );
-  const [results, setResults] = useState<string[]>(new Array(5).fill(""));
+  const [results, setResults] = useState<string[]>(new Array(6).fill(""));
   const [error, setError] = useState<string | null>(null);
   const [selectedAppIndex, setSelectedAppIndex] = useState(0);
   const [editedResults, setEditedResults] = useState<string[]>(
-    new Array(5).fill("")
+    new Array(6).fill("")
   );
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [isMetricsOpen, setIsMetricsOpen] = useState(false);
@@ -76,6 +76,7 @@ export default function Results() {
     "Focus on simplicity and performance. Use minimal dependencies.",
     "Add some creative features that might not be explicitly mentioned in the prompt.",
     "Create an enhanced version with additional features and modern design patterns.",
+    "Build a version with accessibility and internationalization features in mind.",
   ];
 
   const appTitles = [
@@ -84,6 +85,7 @@ export default function Results() {
     "Minimalist Version",
     "Creative Approach",
     "Enhanced Version",
+    "Accessible Version",
   ];
 
   // Handle keyboard shortcuts
@@ -120,6 +122,8 @@ export default function Results() {
           ? "pure"
           : appTitles[index] === "Creative Approach"
           ? "tailwind"
+          : appTitles[index] === "Accessible Version"
+          ? "foundation"
           : "Bulma";
 
       const response = await fetch("/api/generate", {
@@ -228,9 +232,9 @@ export default function Results() {
         });
       }
     } else {
-      setLoadingStates(new Array(5).fill(true));
-      setResults(new Array(5).fill(""));
-      setEditedResults(new Array(5).fill(""));
+      setLoadingStates(new Array(6).fill(true));
+      setResults(new Array(6).fill(""));
+      setEditedResults(new Array(6).fill(""));
       setGenerationTimes({});
       Promise.all(variations.map((_, index) => generateApp(index, prompt)));
     }
@@ -244,7 +248,7 @@ export default function Results() {
     const prompt = searchParams.get("prompt");
     if (!prompt) {
       setError("No prompt provided");
-      setLoadingStates(new Array(5).fill(false));
+      setLoadingStates(new Array(6).fill(false));
       return;
     }
 
@@ -351,21 +355,8 @@ export default function Results() {
                     transition={{ delay: index * 0.1 }}
                     onClick={() => handleTileClick(index)}
                   >
-                    <div className={`p-3 ${
-                      theme === "dark" ? "bg-gray-800" : "bg-gray-50"
-                    } flex justify-between items-center`}>
-                      <h3 className={`text-sm font-medium ${
-                        theme === "dark" ? "text-white" : "text-gray-900"
-                      }`}>
-                        {title}
-                      </h3>
-                      {loadingStates[index] && (
-                        <div className="animate-pulse h-2 w-16 bg-gray-400 rounded"></div>
-                      )}
-                    </div>
-                    
                     <div className="h-[300px]">
-                      <BrowserContainer theme={theme}>
+                      <BrowserContainer theme={theme} title={title}>
                         {loadingStates[index] ? (
                           <LoadingContainer>
                             <LoadingTitle>Generating</LoadingTitle>
@@ -427,7 +418,7 @@ export default function Results() {
                   {appTitles[selectedAppIndex]} - Detailed View
                 </h2>
                 <div className="h-[500px]">
-                  <BrowserContainer theme={theme}>
+                  <BrowserContainer theme={theme} title={`${appTitles[selectedAppIndex]} - Detailed View`}>
                     {loadingStates[selectedAppIndex] ? (
                       <LoadingContainer>
                         <LoadingTitle>Generating</LoadingTitle>
