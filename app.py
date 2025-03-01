@@ -59,7 +59,7 @@ def generate_web_app(prompt, variation_prompt=""):
         """
         
         response = litellm.completion(
-            model="llama-3.1-8b-instant",
+            model="groq/llama-3.1-8b-instant",
             messages=[{"role": "user", "content": full_prompt}],
             api_key=groq_api_key,
             temperature=0.7,
