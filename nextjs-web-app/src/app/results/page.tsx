@@ -236,8 +236,9 @@ export default function Results() {
     }
   };
 
-  const handleVoiceInput = (text: string) => {
+  const handleVoiceInput = (text: string, clearTranscript: () => void) => {
     handleNewPrompt(text, true);
+    clearTranscript();
   };
 
   useEffect(() => {
@@ -399,7 +400,7 @@ export default function Results() {
         generationTimes={generationTimes}
       />
       {isVoiceEnabled && (
-        <VoiceInput onInput={handleVoiceInput} theme={theme} />
+        <VoiceInput onInput={(text) => handleVoiceInput(text, clearTranscript)} theme={theme} />
       )}
     </AuroraBackground>
   );

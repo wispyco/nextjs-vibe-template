@@ -149,6 +149,10 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
     }
   };
 
+  const clearTranscript = () => {
+    setTranscript("");
+  };
+
   return (
     <>
       <VoiceButton
