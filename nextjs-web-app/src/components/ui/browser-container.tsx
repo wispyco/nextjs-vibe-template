@@ -14,19 +14,7 @@ const Container = styled(motion.div)<{ theme: "light" | "dark" }>`
   flex-direction: column;
   color: ${(props) => (props.theme === "dark" ? "#1e2939" : "#000000")};
   border: ${(props) =>
-    props.theme === "dark" 
-      ? "1px solid #373a40" 
-      : "1px solid #d1d5db"};
-  position: relative;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 12px;
-    pointer-events: none;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-  }
+    props.theme === "dark" ? "1px solid #373a40" : "1px solid #d1d5db"};
 `;
 
 const Header = styled.div`
@@ -78,10 +66,9 @@ const Title = styled.div<{ theme: "light" | "dark" }>`
 const Content = styled.div<{ theme: "light" | "dark" }>`
   padding: 0;
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   height: 100%;
   background: ${(props) => (props.theme === "dark" ? "#1e2939" : "#ffffff")};
-  position: relative;
 `;
 
 interface BrowserContainerProps {
