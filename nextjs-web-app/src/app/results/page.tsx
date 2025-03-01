@@ -193,6 +193,8 @@ export default function Results() {
             ? "pure"
             : appTitles[selectedAppIndex] === "Creative Approach"
             ? "tailwind"
+            : appTitles[selectedAppIndex] === "Accessible Version"
+            ? "foundation"
             : "Bulma";
 
         const response = await fetch("/api/generate", {
