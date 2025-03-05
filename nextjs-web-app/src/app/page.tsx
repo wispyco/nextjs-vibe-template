@@ -228,6 +228,19 @@ export default function Home() {
                   ) : null}
                   Generate Web Apps {!isLoading && <>+</>}
                 </RainbowButton>
+                
+                <div className="mt-4 text-center text-sm text-gray-400">
+                  <p>This is an early preview. Open source at{" "}
+                    <a 
+                      href="https://github.com/aj47/chaos-coder" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline"
+                    >
+                      github.com/aj47/chaos-coder
+                    </a>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
