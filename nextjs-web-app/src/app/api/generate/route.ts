@@ -56,24 +56,7 @@ export async function POST(req: NextRequest) {
 
     // Configure Portkey with main provider (groq) and fallback (openrouter)
     const portkey = new Portkey({
-      apiKey: portkeyApiKey,
-      strategy: {
-        mode: "fallback"
-      },
-      targets: [
-        {
-          virtual_key: "groq-virtual-ke-9479cd",
-          override_params: {
-            model: "llama-3.2-1b-preview"
-          }
-        },
-        {
-          virtual_key: "openrouter-07e727",
-          override_params: {
-            model: "meta-llama/llama-3.2-1b-instruct"
-          }
-        }
-      ]
+      apiKey: portkeyApiKey
     });
 
     const frameworkInstructions = framework ? frameworkPrompts[framework as keyof typeof frameworkPrompts] : '';
@@ -151,6 +134,25 @@ Format the code with proper indentation and spacing for readability.`;
       messages: [{ role: 'user', content: fullPrompt }],
       temperature: 0.7,
       max_tokens: 4096,
+      config: {
+        strategy: {
+          mode: "fallback"
+        },
+        targets: [
+          {
+            virtual_key: "groq-virtual-ke-9479cd",
+            override_params: {
+              model: "llama-3.2-1b-preview"
+            }
+          },
+          {
+            virtual_key: "openrouter-07e727",
+            override_params: {
+              model: "meta-llama/llama-3.2-1b-instruct"
+            }
+          }
+        ]
+      }
     });
 
     // Get the response content
