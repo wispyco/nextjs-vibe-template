@@ -61,7 +61,41 @@ export async function POST(req: NextRequest) {
 
     const frameworkInstructions = framework ? frameworkPrompts[framework as keyof typeof frameworkPrompts] : '';
 
-    const fullPrompt = `Create a well-structured, modern web application:
+    // Determine if this is an update request
+    const isUpdate = body.isUpdate === true;
+    const existingCode = body.existingCode || '';
+
+    let fullPrompt;
+    
+    if (isUpdate) {
+      fullPrompt = `Update the following web application based on these instructions:
+
+Instructions:
+1. Update request: ${prompt}
+2. Framework: ${frameworkInstructions}
+
+EXISTING CODE TO MODIFY:
+\`\`\`html
+${existingCode}
+\`\`\`
+
+Technical Requirements:
+- Maintain the overall structure of the existing code
+- Make targeted changes based on the update request
+- Keep all working functionality that isn't explicitly changed
+- Preserve the existing styling approach and framework
+- Ensure all interactive elements continue to work
+- Add clear comments for any new or modified sections
+
+Additional Notes:
+- Return the COMPLETE updated HTML file content
+- Do not remove existing functionality unless specifically requested
+- Ensure the code remains well-structured and maintainable
+- Return ONLY the HTML file content without any explanations
+
+Format the code with proper indentation and spacing for readability.`;
+    } else {
+      fullPrompt = `Create a well-structured, modern web application:
 
 Instructions:
 1. Base functionality: ${prompt}
@@ -94,6 +128,7 @@ Additional Notes:
 - Return ONLY the HTML file content without any explanations
 
 Format the code with proper indentation and spacing for readability.`;
+    }
 
     const response = await client.chat.completions.create({
       model: 'llama-3.2-1b-preview',
