@@ -1,6 +1,8 @@
 import { OpenAI } from 'openai';
 import { NextResponse, NextRequest } from 'next/server';
 
+export const runtime = 'edge';
+
 // Simple in-memory store for rate limiting (replace with Redis in production)
 const submissionCounts = new Map<string, number>();
 
