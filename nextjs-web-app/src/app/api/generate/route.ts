@@ -1,142 +1,76 @@
+import { OpenAI } from 'openai';
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
 
 const frameworkPrompts = {
   tailwind: 'Use Tailwind CSS for styling with modern utility classes. Include the Tailwind CDN.',
   materialize: 'Use Materialize CSS framework for a Material Design look. Include the Materialize CDN.',
   bootstrap: 'Use Bootstrap 5 for responsive components and layout. Include the Bootstrap CDN.',
-  Bulma: 'Use Bulma 4 for enterprise-grade UI components. Include the Bulma CDN.',
-  bulma: 'Use Bulma CSS framework for a modern look. Include the Bulma CDN.',
+  patternfly: 'Use PatternFly for enterprise-grade UI components. Include the PatternFly CDN.',
   pure: 'Use Pure CSS for minimalist, responsive design. Include the Pure CSS CDN.'
 };
 
-const HF_ENDPOINT = "https://v3z3wstcj82tf1q5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
-
 export async function POST(req: Request) {
   try {
-    const { prompt, variation, framework, existingCode, isUpdate } = await req.json();
+    const { prompt, variation, framework } = await req.json();
     
-    if (!process.env.HF_API_TOKEN) {
-      return NextResponse.json({ error: 'Hugging Face API token not configured' }, { status: 500 });
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
+      return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
     }
+
+    const client = new OpenAI({
+      apiKey: groqApiKey,
+      baseURL: 'https://api.groq.com/openai/v1',
+    });
 
     const frameworkInstructions = framework ? frameworkPrompts[framework as keyof typeof frameworkPrompts] : '';
 
-    const systemPrompt = `You are an expert web developer who creates clean, semantic HTML code. 
-Always respond with ONLY valid HTML code. No explanations, no markdown formatting.
-Your HTML must:
-1. Start with <!DOCTYPE html>
-2. Include proper meta tags and charset
-3. Be complete and self-contained
-4. Use semantic HTML5 elements
-5. Be responsive and accessible
-6. Include all necessary CSS inline in a <style> tag
-7. Follow modern web development best practices`;
-    
-    const colorInstruction = `The UI should be colorful and visually appealing, incorporating modern color palettes or a gradient effect for the background. The app design should be clean, easy to navigate, and responsive on different devices. Ensure that the app provides a fun and engaging user experience by using contemporary design elements like smooth transitions, rounded buttons, and subtle animations. Make sure the overall feel is fresh and modern. and modern font type and app should take full height of the screen`; 
+    const fullPrompt = `Create a well-structured, modern web application:
 
-    const userPrompt = isUpdate 
-      ? `Update this HTML code according to this request while maintaining the structure and styling:
+Instructions:
+1. Base functionality: ${prompt}
+2. Variation: ${variation}
+3. Framework: ${frameworkInstructions}
 
-Existing code:
-${existingCode}
+Technical Requirements:
+- Create a single HTML file with clean, indented code structure
+- Organize the code in this order:
+  1. <!DOCTYPE html> and meta tags
+  2. <title> and other head elements
+  3. Framework CSS and JS imports
+  4. Custom CSS styles in a <style> tag
+  5. HTML body with semantic markup
+  6. JavaScript in a <script> tag at the end of body
+- Use proper HTML5 semantic elements
+- Include clear spacing between sections
+- Add descriptive comments for each major component
+- Ensure responsive design with mobile-first approach
+- Use modern ES6+ JavaScript features
+- Keep the code modular and well-organized
+- Ensure all interactive elements have proper styling states (hover, active, etc.)
+- Implement the framework-specific best practices and components
 
-Update request:
-${prompt} 
+Additional Notes:
+- The code must be complete and immediately runnable
+- All custom CSS and JavaScript should be included inline
+- Code must work properly when rendered in an iframe
+- Focus on clean, maintainable code structure
+- Return ONLY the HTML file content without any explanations
 
-Requirements:
-- Preserve the existing framework and styling
-- Keep the same overall structure
-- Only modify what's necessary
-- Ensure the code remains complete and self-contained
-- Maintain all necessary CSS and JS`
-      : `Create a complete HTML page with the following requirements:
-${prompt} +  color instruction: ${colorInstruction}
-${variation ? `Variation: ${variation}\n` : ''}${frameworkInstructions ? `Framework: ${frameworkInstructions}\n` : ''}`;
+Format the code with proper indentation and spacing for readability.`;
 
-    const response = await fetch(HF_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.HF_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: "tgi",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: userPrompt
-          }
-        ],
-        max_tokens: 4096,
-        stream: true
-      })
+    const response = await client.chat.completions.create({
+      model: 'llama-3.2-1b-preview',
+      messages: [{ role: 'user', content: fullPrompt }],
+      temperature: 0.7,
+      max_tokens: 4096,
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`API request failed: ${error}`);
-    }
-
-    if (!response.body) {
-      throw new Error('No response body received');
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let fullResponse = '';
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-            
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.choices?.[0]?.delta?.content) {
-                fullResponse += parsed.choices[0].delta.content;
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error reading stream:', error);
-      throw new Error('Failed to read stream');
-    } finally {
-      reader.releaseLock();
-    }
-
-    // Clean up the response
-    fullResponse = fullResponse
-      .replace(/```html\n?|\n?```/g, '') // Remove markdown code blocks
-      .replace(/^["']|["']$/g, '') // Remove quotes
-      .replace(/\\"/g, '"') // Unescape quotes
-      .trim();
-
-    return NextResponse.json({ 
-      code: fullResponse, // Changed from 'text' to 'code' to match frontend expectations
-      status: 'success'
-    });
-
+    return NextResponse.json({ code: response.choices[0].message.content });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate response' },
+      { error: 'Failed to generate code' },
       { status: 500 }
     );
   }
