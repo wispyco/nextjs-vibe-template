@@ -7,33 +7,13 @@ import { useTheme } from "@/context/ThemeContext";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 
 export default function SignupPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
   const { theme } = useTheme();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    
-    // This is a placeholder for actual signup logic
-    // In a real app, you would call your authentication API here
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For demo purposes, just redirect to home
-      router.push("/");
-    } catch (err: any) {
-      setError(err.message || "Failed to create account");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const router = useRouter();
+  
+  // Redirect to Google Form on component mount
+  useEffect(() => {
+    window.location.href = "https://docs.google.com/forms/d/e/1FAIpQLSdBUzzrsu74cJlRhZZVSQuYAcGZ4_8RKB-G7vYZGibU7S5T4g/viewform?usp=header";
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -48,109 +28,36 @@ export default function SignupPage() {
       >
         <h1 className="text-2xl font-bold mb-6">Create your account</h1>
         
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500">
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label 
-              htmlFor="name" 
-              className={`block mb-1 text-sm font-medium ${
-                theme === "dark" ? "text-gray-300" : "text-gray-700"
-              }`}
-            >
-              Full Name
-            </label>
-            <input
-              id="name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className={`w-full p-2.5 rounded-lg border ${
-                theme === "dark"
-                  ? "bg-gray-800 border-gray-700 text-white focus:border-blue-500"
-                  : "bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500"
-              } focus:outline-none focus:ring-1 focus:ring-blue-500`}
-            />
-          </div>
-          
-          <div>
-            <label 
-              htmlFor="email" 
-              className={`block mb-1 text-sm font-medium ${
-                theme === "dark" ? "text-gray-300" : "text-gray-700"
-              }`}
-            >
-              Email Address
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className={`w-full p-2.5 rounded-lg border ${
-                theme === "dark"
-                  ? "bg-gray-800 border-gray-700 text-white focus:border-blue-500"
-                  : "bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500"
-              } focus:outline-none focus:ring-1 focus:ring-blue-500`}
-            />
-          </div>
-          
-          <div>
-            <label 
-              htmlFor="password" 
-              className={`block mb-1 text-sm font-medium ${
-                theme === "dark" ? "text-gray-300" : "text-gray-700"
-              }`}
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className={`w-full p-2.5 rounded-lg border ${
-                theme === "dark"
-                  ? "bg-gray-800 border-gray-700 text-white focus:border-blue-500"
-                  : "bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500"
-              } focus:outline-none focus:ring-1 focus:ring-blue-500`}
-            />
-          </div>
-          
-          <div className="pt-2">
-            <RainbowButton
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center"
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-              ) : null}
-              Create Account
-            </RainbowButton>
-          </div>
-        </form>
-        
-        <div className="mt-6 text-center">
-          <p className={theme === "dark" ? "text-gray-400" : "text-gray-600"}>
-            Already have an account?{" "}
-            <button
-              onClick={() => router.push("/login")}
-              className={`font-medium ${
-                theme === "dark" ? "text-blue-400" : "text-blue-600"
-              } hover:underline`}
-            >
-              Sign in
-            </button>
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <p className="text-center">
+            Redirecting you to our signup form...
           </p>
+          <div className="w-8 h-8 border-4 border-t-indigo-500 border-indigo-200 rounded-full animate-spin"></div>
+          <p className="text-sm text-center">
+            If you are not redirected automatically, please click the button below:
+          </p>
+          <a 
+            href="https://docs.google.com/forms/d/e/1FAIpQLSdBUzzrsu74cJlRhZZVSQuYAcGZ4_8RKB-G7vYZGibU7S5T4g/viewform?usp=header"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`w-full py-2 px-4 rounded-lg font-medium text-center ${
+              theme === "dark" 
+                ? "bg-indigo-600 hover:bg-indigo-700 text-white" 
+                : "bg-indigo-500 hover:bg-indigo-600 text-white"
+            }`}
+          >
+            Go to Signup Form
+          </a>
+          <button
+            onClick={() => router.push("/")}
+            className={`w-full py-2 px-4 rounded-lg font-medium ${
+              theme === "dark"
+                ? "bg-gray-800 hover:bg-gray-700 text-gray-300"
+                : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+            }`}
+          >
+            Back to Home
+          </button>
         </div>
       </motion.div>
     </div>

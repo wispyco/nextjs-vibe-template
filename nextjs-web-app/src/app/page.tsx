@@ -53,16 +53,18 @@ export function SignupModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
         <p className="mb-6">You've reached the limit of 25 free generations. Create an account to continue using our service.</p>
         
         <div className="flex flex-col gap-4">
-          <button 
-            onClick={() => router.push('/signup')} 
-            className={`w-full py-2 px-4 rounded-lg font-medium ${
+          <a 
+            href="https://docs.google.com/forms/d/e/1FAIpQLSdBUzzrsu74cJlRhZZVSQuYAcGZ4_8RKB-G7vYZGibU7S5T4g/viewform?usp=header"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`w-full py-2 px-4 rounded-lg font-medium text-center block ${
               theme === 'dark' 
                 ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
                 : 'bg-indigo-500 hover:bg-indigo-600 text-white'
             }`}
           >
             Sign Up
-          </button>
+          </a>
           <button 
             onClick={onClose}
             className={`w-full py-2 px-4 rounded-lg font-medium ${
