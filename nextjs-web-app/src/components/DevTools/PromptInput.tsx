@@ -24,8 +24,16 @@ export default function PromptInput({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
-      onSubmit(prompt, isUpdateMode, chaosMode);
-      setPrompt("");
+      try {
+        onSubmit(prompt, isUpdateMode, chaosMode);
+        setPrompt("");
+      } catch (error: any) {
+        if (error?.error === 'rate_limit_exceeded') {
+          alert(error.message || 'Free limit exceeded. Please create an account to continue.');
+          // Redirect to signup page or show signup modal
+          // window.location.href = '/signup'; // Uncomment when signup page is ready
+        }
+      }
     }
   };
 
