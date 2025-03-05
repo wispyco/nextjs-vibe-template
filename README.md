@@ -1,7 +1,7 @@
 # 10xDev
 
 <div align="center">
-  <video src="./chaos coder demo.mp4" width="640" height="360" controls></video>
+  <img src="./demo.gif" alt="Chaos Coder Demo" width="640">
 </div>
 
 ## Overview
@@ -96,7 +96,7 @@ For best results, be as specific as possible when describing your application re
 
 ## Demo
 
-Check out the demo video at the top of this README to see 10xDev in action.
+Check out the demo GIF at the top of this README to see 10xDev in action.
 
 ## Community
 
