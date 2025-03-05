@@ -4,6 +4,8 @@
 
 10xDev is a Next.js application that generates five variations of web applications simultaneously using AI. This tool helps developers quickly explore different implementation possibilities for their web application ideas.
 
+**Note:** All the code for this project is located in the `nextjs-web-app` folder.
+
 ## Purpose
 
 The purpose of 10xDev is to accelerate the development process by providing multiple variations of code solutions for web applications. By generating five different approaches at once, developers can compare and choose the best implementation for their specific needs.
@@ -30,8 +32,8 @@ The purpose of 10xDev is to accelerate the development process by providing mult
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/aj47/10x-dev.git
-cd 10x-dev
+git clone https://github.com/aj47/chaos-coder.git
+cd chaos-coder/nextjs-web-app
 ```
 
 ### 2. Install dependencies
