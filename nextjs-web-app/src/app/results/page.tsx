@@ -14,6 +14,7 @@ import PromptInput from "@/components/DevTools/PromptInput";
 import PerformanceMetrics from "@/components/DevTools/PerformanceMetrics";
 import VoiceInput from "@/components/DevTools/VoiceInput";
 import MockDeployButton from "@/components/MockDeployButton";
+import { SignupModal } from "@/app/page";
 import styled from "styled-components";
 
 const LoadingContainer = styled.div`
@@ -71,6 +72,7 @@ export default function Results() {
     [key: number]: number;
   }>({});
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [showSignupModal, setShowSignupModal] = useState(false);
   const { theme } = useTheme();
 
   const variations = [
@@ -147,12 +149,21 @@ export default function Results() {
         }),
       });
 
+      if (response.status === 429) {
+        // Show signup modal for rate limit
+        setShowSignupModal(true);
+        throw new Error("Rate limit exceeded. Please create an account to continue.");
+      }
+
       if (!response.ok) {
         throw new Error(`Failed to generate app ${index + 1}`);
       }
 
       const data = await response.json();
-      if (data.error) {
+      if (data.error === "rate_limit_exceeded") {
+        setShowSignupModal(true);
+        throw new Error("Rate limit exceeded. Please create an account to continue.");
+      } else if (data.error) {
         throw new Error(data.error);
       }
 
@@ -353,6 +364,12 @@ export default function Results() {
 
   return (
     <AuroraBackground>
+      {showSignupModal && (
+        <SignupModal
+          isOpen={showSignupModal}
+          onClose={() => setShowSignupModal(false)}
+        />
+      )}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

@@ -21,21 +21,31 @@ export async function POST(req: NextRequest) {
   // For debugging only
   console.log(`Rate limit check: IP ${ip} has used ${count} requests`);
   
-  if (count >= 5) {
-    return NextResponse.json({ 
-      error: 'rate_limit_exceeded',
-      message: 'Free limit exceeded. Please create an account to continue.'
-    }, { 
-      status: 429 
-    });
+  if (count >= 25) {
+    console.log('Rate limit exceeded for IP:', ip);
+    return new Response(
+      JSON.stringify({ 
+        error: 'rate_limit_exceeded',
+        message: 'Free limit exceeded. Please create an account to continue.'
+      }), 
+      { 
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   }
   
+  // Parse the request body
+  const body = await req.json();
+  
   // Only increment count for real generations, not rate limit checks
-  if (req.body && typeof req.body === 'object' && req.body.variation !== 'rate-limit-check') {
+  if (body && body.variation !== 'rate-limit-check') {
     submissionCounts.set(ip, count + 1);
   }
   try {
-    const { prompt, variation, framework } = await req.json();
+    const { prompt, variation, framework } = body;
     
     const groqApiKey = process.env.GROQ_API_KEY;
     if (!groqApiKey) {
