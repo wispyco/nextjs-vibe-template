@@ -53,15 +53,17 @@ const ShortLoadingBar = styled(LoadingBar)`
 `;
 
 export default function Results() {
+  const NUM_APPS = 10; // Single variable to control number of apps
+  
   const searchParams = useSearchParams();
   const [loadingStates, setLoadingStates] = useState<boolean[]>(
-    new Array(6).fill(true)
+    new Array(NUM_APPS).fill(true)
   );
-  const [results, setResults] = useState<string[]>(new Array(6).fill(""));
+  const [results, setResults] = useState<string[]>(new Array(NUM_APPS).fill(""));
   const [error, setError] = useState<string | null>(null);
   const [selectedAppIndex, setSelectedAppIndex] = useState(0);
   const [editedResults, setEditedResults] = useState<string[]>(
-    new Array(6).fill("")
+    new Array(NUM_APPS).fill("")
   );
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [isMetricsOpen, setIsMetricsOpen] = useState(false);
@@ -78,6 +80,10 @@ export default function Results() {
     "Add some creative features that might not be explicitly mentioned in the prompt.",
     "Create an enhanced version with additional features and modern design patterns.",
     "Build a version with accessibility and internationalization features in mind.",
+    "Create a version optimized for mobile devices with responsive design.",
+    "Build a version with advanced animations and interactive elements.",
+    "Create a version with data visualization capabilities.",
+    "Build a version with offline functionality and progressive web app features.",
   ];
 
   const appTitles = [
@@ -87,6 +93,10 @@ export default function Results() {
     "Creative Approach",
     "Enhanced Version",
     "Accessible Version",
+    "Mobile Optimized",
+    "Interactive Version",
+    "Data Visualization",
+    "Progressive Web App",
   ];
 
   // Handle keyboard shortcuts
@@ -299,9 +309,9 @@ export default function Results() {
         }
       }
     } else {
-      setLoadingStates(new Array(6).fill(true));
-      setResults(new Array(6).fill(""));
-      setEditedResults(new Array(6).fill(""));
+      setLoadingStates(new Array(NUM_APPS).fill(true));
+      setResults(new Array(NUM_APPS).fill(""));
+      setEditedResults(new Array(NUM_APPS).fill(""));
       setGenerationTimes({});
       Promise.all(variations.map((_, index) => generateApp(index, prompt)));
     }
@@ -315,7 +325,7 @@ export default function Results() {
     const prompt = searchParams.get("prompt");
     if (!prompt) {
       setError("No prompt provided");
-      setLoadingStates(new Array(6).fill(false));
+      setLoadingStates(new Array(NUM_APPS).fill(false));
       return;
     }
 
