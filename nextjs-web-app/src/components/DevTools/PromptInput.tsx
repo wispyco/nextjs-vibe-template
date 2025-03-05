@@ -19,7 +19,7 @@ export default function PromptInput({
   currentCode = "",
 }: PromptInputProps) {
   const [prompt, setPrompt] = useState("");
-  const [chaosMode, setChaosMode] = useState(false);
+  const [chaosMode, setChaosMode] = useState(true);
   const [showSignupModal, setShowSignupModal] = useState(false);
   const { theme } = useTheme();
 

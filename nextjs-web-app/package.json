@@ -26,6 +26,7 @@
     "nanoid": "^5.1.2",
     "next": "15.2.0",
     "openai": "^4.86.1",
+    "portkey-ai": "^1.7.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
