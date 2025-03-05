@@ -1,5 +1,9 @@
 # 10xDev
 
+<div align="center">
+  <video src="./chaos coder demo.mp4" width="640" height="360" controls></video>
+</div>
+
 ## Overview
 
 10xDev is a Next.js application that generates five variations of web applications simultaneously using AI. This tool helps developers quickly explore different implementation possibilities for their web application ideas.
@@ -92,9 +96,7 @@ For best results, be as specific as possible when describing your application re
 
 ## Demo
 
-Check out the demo video to see 10xDev in action:
-
-[Chaos Coder Demo Video](./chaos%20coder%20demo.mp4)
+Check out the demo video at the top of this README to see 10xDev in action.
 
 ## Community
 
