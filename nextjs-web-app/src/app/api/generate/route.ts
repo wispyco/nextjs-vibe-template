@@ -1,5 +1,8 @@
 import { OpenAI } from 'openai';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+
+// Simple in-memory store for rate limiting (replace with Redis in production)
+const submissionCounts = new Map<string, number>();
 
 const frameworkPrompts = {
   tailwind: 'Use Tailwind CSS for styling with modern utility classes. Include the Tailwind CDN.',
@@ -9,7 +12,24 @@ const frameworkPrompts = {
   pure: 'Use Pure CSS for minimalist, responsive design. Include the Pure CSS CDN.'
 };
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Get client IP address
+  const ip = req.ip || req.headers.get('x-forwarded-for') || '127.0.0.1';
+  
+  // Check rate limit (5 requests per IP)
+  const count = submissionCounts.get(ip) || 0;
+  
+  if (count >= 5) {
+    return NextResponse.json({ 
+      error: 'rate_limit_exceeded',
+      message: 'Free limit exceeded. Please create an account to continue.'
+    }, { 
+      status: 429 
+    });
+  }
+  
+  // Increment count for this IP
+  submissionCounts.set(ip, count + 1);
   try {
     const { prompt, variation, framework } = await req.json();
     
