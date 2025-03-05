@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AuroraBackground } from "@/components/ui/aurora-background";
@@ -14,7 +14,7 @@ import PromptInput from "@/components/DevTools/PromptInput";
 import PerformanceMetrics from "@/components/DevTools/PerformanceMetrics";
 import VoiceInput from "@/components/DevTools/VoiceInput";
 import MockDeployButton from "@/components/MockDeployButton";
-import { SignupModal } from "@/app/page";
+import { SignupModal } from "@/components/SignupModal";
 import styled from "styled-components";
 
 const LoadingContainer = styled.div`
@@ -53,7 +53,8 @@ const ShortLoadingBar = styled(LoadingBar)`
   max-width: 300px;
 `;
 
-export default function Results() {
+// Wrapper component that uses searchParams
+function ResultsContent() {
   const NUM_APPS = 9; // Single variable to control number of apps
   
   const searchParams = useSearchParams();
@@ -580,5 +581,21 @@ export default function Results() {
         <VoiceInput onInput={(text) => handleVoiceInput(text)} theme={theme} />
       )}
     </AuroraBackground>
+  );
+}
+
+// Main component with Suspense boundary
+export default function Results() {
+  return (
+    <Suspense fallback={
+      <div className="w-full h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-4">Loading...</h2>
+          <div className="w-16 h-16 border-4 border-gray-300 border-t-indigo-500 rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    }>
+      <ResultsContent />
+    </Suspense>
   );
 }
