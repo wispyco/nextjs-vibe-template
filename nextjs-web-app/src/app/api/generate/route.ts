@@ -18,8 +18,9 @@ export async function POST(req: NextRequest) {
   
   // Check rate limit (5 requests per IP)
   const count = submissionCounts.get(ip) || 0;
+  console.log("@@@", count, "@@@")
   
-  if (count >= 5) {
+  if (count >= 45) {
     return NextResponse.json({ 
       error: 'rate_limit_exceeded',
       message: 'Free limit exceeded. Please create an account to continue.'
