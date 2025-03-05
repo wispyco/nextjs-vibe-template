@@ -301,7 +301,7 @@ export default function Results() {
               }`}
             >
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 ">
-                10x.Dev
+                Chaos Coder
               </span>
             </motion.h1>
             <div className="flex items-center gap-4">
