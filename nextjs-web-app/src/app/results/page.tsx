@@ -53,7 +53,7 @@ const ShortLoadingBar = styled(LoadingBar)`
 `;
 
 export default function Results() {
-  const NUM_APPS = 10; // Single variable to control number of apps
+  const NUM_APPS = 9; // Single variable to control number of apps
   
   const searchParams = useSearchParams();
   const [loadingStates, setLoadingStates] = useState<boolean[]>(
