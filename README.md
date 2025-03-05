@@ -1,4 +1,4 @@
-# 10xDev
+# Chaos Coder
 
 <div align="center">
   <img src="./demo.gif" alt="Chaos Coder Demo" width="640">
@@ -6,13 +6,13 @@
 
 ## Overview
 
-10xDev is a Next.js application that generates five variations of web applications simultaneously using AI. This tool helps developers quickly explore different implementation possibilities for their web application ideas.
+Chaos Coder is a Next.js application that generates five variations of web applications simultaneously using AI. This tool helps developers quickly explore different implementation possibilities for their web application ideas.
 
 **Note:** All the code for this project is located in the `nextjs-web-app` folder.
 
 ## Purpose
 
-The purpose of 10xDev is to accelerate the development process by providing multiple variations of code solutions for web applications. By generating five different approaches at once, developers can compare and choose the best implementation for their specific needs.
+The purpose of Chaos Coder is to accelerate the development process by providing multiple variations of code solutions for web applications. By generating five different approaches at once, developers can compare and choose the best implementation for their specific needs.
 
 ## Features
 
@@ -96,7 +96,7 @@ For best results, be as specific as possible when describing your application re
 
 ## Demo
 
-Check out the demo GIF at the top of this README to see 10xDev in action.
+Check out the demo GIF at the top of this README to see Chaos Coder in action.
 
 ## Community
 
