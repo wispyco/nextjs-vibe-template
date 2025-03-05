@@ -66,7 +66,13 @@ Format the code with proper indentation and spacing for readability.`;
       max_tokens: 4096,
     });
 
-    return NextResponse.json({ code: response.choices[0].message.content });
+    // Get the response content
+    let code = response.choices[0].message.content || '';
+    
+    // Trim out any markdown code blocks (```html, ```, etc.)
+    code = code.replace(/^```(?:html|javascript|js)?\n([\s\S]*?)```$/m, '$1').trim();
+    
+    return NextResponse.json({ code });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
