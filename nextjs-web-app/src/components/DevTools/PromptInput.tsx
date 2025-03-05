@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { FaMicrophone, FaBolt } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import { SignupModal } from "@/app/page";
 
 interface PromptInputProps {
   isOpen: boolean;
@@ -19,29 +20,46 @@ export default function PromptInput({
 }: PromptInputProps) {
   const [prompt, setPrompt] = useState("");
   const [chaosMode, setChaosMode] = useState(false);
+  const [showSignupModal, setShowSignupModal] = useState(false);
   const { theme } = useTheme();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
       try {
-        onSubmit(prompt, isUpdateMode, chaosMode);
+        const result = await onSubmit(prompt, isUpdateMode, chaosMode);
         setPrompt("");
+        
+        // If onSubmit returns a value with an error property
+        if (result && typeof result === 'object' && 'error' in result) {
+          if (result.error === 'rate_limit_exceeded') {
+            setShowSignupModal(true);
+          }
+        }
       } catch (error: any) {
-        if (error?.error === 'rate_limit_exceeded') {
-          alert(error.message || 'Free limit exceeded. Please create an account to continue.');
-          // Redirect to signup page or show signup modal
-          // window.location.href = '/signup'; // Uncomment when signup page is ready
+        console.error("Error submitting prompt:", error);
+        
+        // Check for rate limit error in the caught exception
+        if (error?.error === 'rate_limit_exceeded' || 
+            (error.response && error.response.status === 429)) {
+          setShowSignupModal(true);
         }
       }
     }
   };
 
   return (
-    <motion.div
-      initial={{ y: 0, opacity: 1 }}
-      className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[600px] z-50"
-    >
+    <>
+      {showSignupModal && (
+        <SignupModal 
+          isOpen={showSignupModal} 
+          onClose={() => setShowSignupModal(false)} 
+        />
+      )}
+      <motion.div
+        initial={{ y: 0, opacity: 1 }}
+        className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[600px] z-50"
+      >
       <div className="relative">
         <form onSubmit={handleSubmit} className="flex gap-2">
           <div className="flex-1 relative">
@@ -105,5 +123,6 @@ export default function PromptInput({
         </form>
       </div>
     </motion.div>
+    </>
   );
 }
