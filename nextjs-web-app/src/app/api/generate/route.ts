@@ -1,142 +1,118 @@
-import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { OpenAI } from 'openai';
+import { NextResponse, NextRequest } from 'next/server';
+
+export const runtime = 'edge';
+
+// Simple in-memory store for rate limiting (replace with Redis in production)
+const submissionCounts = new Map<string, number>();
 
 const frameworkPrompts = {
   tailwind: 'Use Tailwind CSS for styling with modern utility classes. Include the Tailwind CDN.',
   materialize: 'Use Materialize CSS framework for a Material Design look. Include the Materialize CDN.',
   bootstrap: 'Use Bootstrap 5 for responsive components and layout. Include the Bootstrap CDN.',
-  Bulma: 'Use Bulma 4 for enterprise-grade UI components. Include the Bulma CDN.',
-  bulma: 'Use Bulma CSS framework for a modern look. Include the Bulma CDN.',
+  patternfly: 'Use PatternFly for enterprise-grade UI components. Include the PatternFly CDN.',
   pure: 'Use Pure CSS for minimalist, responsive design. Include the Pure CSS CDN.'
 };
 
-const HF_ENDPOINT = "https://v3z3wstcj82tf1q5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Get client IP address
+  const ip = req.ip || req.headers.get('x-forwarded-for') || '127.0.0.1';
+  
+  // Check rate limit (5 requests per IP)
+  const count = submissionCounts.get(ip) || 0;
+  // For debugging only
+  console.log(`Rate limit check: IP ${ip} has used ${count} requests`);
+  
+  if (count >= 25) {
+    console.log('Rate limit exceeded for IP:', ip);
+    return new Response(
+      JSON.stringify({ 
+        error: 'rate_limit_exceeded',
+        message: 'Free limit exceeded. Please create an account to continue.'
+      }), 
+      { 
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+  }
+  
+  // Parse the request body
+  const body = await req.json();
+  
+  // Only increment count for real generations, not rate limit checks
+  if (body && body.variation !== 'rate-limit-check') {
+    submissionCounts.set(ip, count + 1);
+  }
   try {
-    const { prompt, variation, framework, existingCode, isUpdate } = await req.json();
+    const { prompt, variation, framework } = body;
     
-    if (!process.env.HF_API_TOKEN) {
-      return NextResponse.json({ error: 'Hugging Face API token not configured' }, { status: 500 });
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
+      return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
     }
+
+    const client = new OpenAI({
+      apiKey: groqApiKey,
+      baseURL: 'https://api.groq.com/openai/v1',
+    });
 
     const frameworkInstructions = framework ? frameworkPrompts[framework as keyof typeof frameworkPrompts] : '';
 
-    const systemPrompt = `You are an expert web developer who creates clean, semantic HTML code. 
-Always respond with ONLY valid HTML code. No explanations, no markdown formatting.
-Your HTML must:
-1. Start with <!DOCTYPE html>
-2. Include proper meta tags and charset
-3. Be complete and self-contained
-4. Use semantic HTML5 elements
-5. Be responsive and accessible
-6. Include all necessary CSS inline in a <style> tag
-7. Follow modern web development best practices`;
+    const fullPrompt = `Create a well-structured, modern web application:
+
+Instructions:
+1. Base functionality: ${prompt}
+2. Variation: ${variation}
+3. Framework: ${frameworkInstructions}
+
+Technical Requirements:
+- Create a single HTML file with clean, indented code structure
+- Organize the code in this order:
+  1. <!DOCTYPE html> and meta tags
+  2. <title> and other head elements
+  3. Framework CSS and JS imports
+  4. Custom CSS styles in a <style> tag
+  5. HTML body with semantic markup
+  6. JavaScript in a <script> tag at the end of body
+- Use proper HTML5 semantic elements
+- Include clear spacing between sections
+- Add descriptive comments for each major component
+- Ensure responsive design with mobile-first approach
+- Use modern ES6+ JavaScript features
+- Keep the code modular and well-organized
+- Ensure all interactive elements have proper styling states (hover, active, etc.)
+- Implement the framework-specific best practices and components
+
+Additional Notes:
+- The code must be complete and immediately runnable
+- All custom CSS and JavaScript should be included inline
+- Code must work properly when rendered in an iframe
+- Focus on clean, maintainable code structure
+- Return ONLY the HTML file content without any explanations
+
+Format the code with proper indentation and spacing for readability.`;
+
+    const response = await client.chat.completions.create({
+      model: 'llama-3.2-1b-preview',
+      messages: [{ role: 'user', content: fullPrompt }],
+      temperature: 0.7,
+      max_tokens: 4096,
+    });
+
+    // Get the response content
+    let code = response.choices[0].message.content || '';
     
-    const colorInstruction = `The UI should be colorful and visually appealing, incorporating modern color palettes or a gradient effect for the background. The app design should be clean, easy to navigate, and responsive on different devices. Ensure that the app provides a fun and engaging user experience by using contemporary design elements like smooth transitions, rounded buttons, and subtle animations. Make sure the overall feel is fresh and modern. and modern font type and app should take full height of the screen`; 
-
-    const userPrompt = isUpdate 
-      ? `Update this HTML code according to this request while maintaining the structure and styling:
-
-Existing code:
-${existingCode}
-
-Update request:
-${prompt} 
-
-Requirements:
-- Preserve the existing framework and styling
-- Keep the same overall structure
-- Only modify what's necessary
-- Ensure the code remains complete and self-contained
-- Maintain all necessary CSS and JS`
-      : `Create a complete HTML page with the following requirements:
-${prompt} +  color instruction: ${colorInstruction}
-${variation ? `Variation: ${variation}\n` : ''}${frameworkInstructions ? `Framework: ${frameworkInstructions}\n` : ''}`;
-
-    const response = await fetch(HF_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.HF_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: "tgi",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: userPrompt
-          }
-        ],
-        max_tokens: 4096,
-        stream: true
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`API request failed: ${error}`);
-    }
-
-    if (!response.body) {
-      throw new Error('No response body received');
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let fullResponse = '';
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-            
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.choices?.[0]?.delta?.content) {
-                fullResponse += parsed.choices[0].delta.content;
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error reading stream:', error);
-      throw new Error('Failed to read stream');
-    } finally {
-      reader.releaseLock();
-    }
-
-    // Clean up the response
-    fullResponse = fullResponse
-      .replace(/```html\n?|\n?```/g, '') // Remove markdown code blocks
-      .replace(/^["']|["']$/g, '') // Remove quotes
-      .replace(/\\"/g, '"') // Unescape quotes
-      .trim();
-
-    return NextResponse.json({ 
-      code: fullResponse, // Changed from 'text' to 'code' to match frontend expectations
-      status: 'success'
-    });
-
+    // Trim out any markdown code blocks (```html, ```, etc.)
+    code = code.replace(/^```(?:html|javascript|js)?\n([\s\S]*?)```$/m, '$1').trim();
+    
+    return NextResponse.json({ code });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate response' },
+      { error: 'Failed to generate code' },
       { status: 500 }
     );
   }

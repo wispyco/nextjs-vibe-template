@@ -1,15 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import MonacoEditor from '@monaco-editor/react';
+import { useEffect, useState } from 'react';
 
 interface CodePreviewPanelProps {
   code: string;
-  title: string;
-  onCodeChange?: (newCode: string) => void;
+  title?: string;
+  onChange?: (newCode: string) => void;
+  isLoading?: boolean;
+  theme: "light" | "dark";
+  deployButton?: React.ReactNode;
 }
 
-export default function CodePreviewPanel({ code, title, onCodeChange }: CodePreviewPanelProps) {
+export default function CodePreviewPanel({ 
+  code, 
+  title, 
+  onChange, 
+  isLoading = false,
+  theme,
+  deployButton
+}: CodePreviewPanelProps) {
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [editedCode, setEditedCode] = useState(code);
   const [previewKey, setPreviewKey] = useState(0);
@@ -22,33 +31,36 @@ export default function CodePreviewPanel({ code, title, onCodeChange }: CodePrev
     if (value !== undefined) {
       setEditedCode(value);
       setPreviewKey(prev => prev + 1);
-      onCodeChange?.(value);
+      onChange?.(value);
     }
   };
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-end px-4 py-2 space-x-2">
-        <button
-          onClick={() => setActiveTab('preview')}
-          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'preview'
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-300 hover:text-white'
-          }`}
-        >
-          Preview
-        </button>
-        <button
-          onClick={() => setActiveTab('code')}
-          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'code'
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-300 hover:text-white'
-          }`}
-        >
-          Code
-        </button>
+      <div className="flex items-center justify-between px-4 py-2">
+        <div>{deployButton}</div>
+        <div className="space-x-2">
+          <button
+            onClick={() => setActiveTab('preview')}
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'preview'
+                ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                : theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Preview
+          </button>
+          <button
+            onClick={() => setActiveTab('code')}
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'code'
+                ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                : theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Code
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 min-h-0">
@@ -65,7 +77,7 @@ export default function CodePreviewPanel({ code, title, onCodeChange }: CodePrev
             <MonacoEditor
               height="100%"
               defaultLanguage="html"
-              theme="vs-dark"
+              theme={theme === 'dark' ? "vs-dark" : "light"}
               value={editedCode}
               onChange={handleCodeChange}
               options={{
@@ -74,7 +86,7 @@ export default function CodePreviewPanel({ code, title, onCodeChange }: CodePrev
                 lineNumbers: 'on',
                 roundedSelection: false,
                 scrollBeyondLastLine: false,
-                readOnly: false,
+                readOnly: isLoading,
                 automaticLayout: true,
               }}
             />
