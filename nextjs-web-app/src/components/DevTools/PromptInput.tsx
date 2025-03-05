@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { FaMicrophone } from "react-icons/fa";
+import { FaMicrophone, FaBolt } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
 interface PromptInputProps {
   isOpen: boolean;
-  onSubmit: (prompt: string, isUpdate?: boolean) => void;
+  onSubmit: (prompt: string, isUpdate?: boolean, chaosMode?: boolean) => void;
   isUpdateMode?: boolean;
   currentCode?: string;
 }
@@ -18,12 +18,13 @@ export default function PromptInput({
   currentCode = "",
 }: PromptInputProps) {
   const [prompt, setPrompt] = useState("");
+  const [chaosMode, setChaosMode] = useState(false);
   const { theme } = useTheme();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
-      onSubmit(prompt, isUpdateMode);
+      onSubmit(prompt, isUpdateMode, chaosMode);
       setPrompt("");
     }
   };
@@ -66,6 +67,23 @@ export default function PromptInput({
               } pointer-events-none`}
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setChaosMode(!chaosMode)}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+              chaosMode
+                ? theme === "dark"
+                  ? "bg-purple-700 text-white"
+                  : "bg-purple-500 text-white"
+                : theme === "dark"
+                ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+            title={chaosMode ? "Chaos Mode: Update all renders" : "Normal Mode: Update selected render only"}
+          >
+            <FaBolt className={`w-3 h-3 ${chaosMode ? "text-yellow-300" : ""}`} />
+            {chaosMode ? "Chaos" : "Single"}
+          </button>
           <button
             type="submit"
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${

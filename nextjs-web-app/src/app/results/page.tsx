@@ -176,63 +176,127 @@ export default function Results() {
     }
   };
 
-  const handleNewPrompt = async (prompt: string, isUpdate: boolean = false) => {
+  const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false) => {
     if (isUpdate) {
-      setLoadingStates((prev) => {
-        const newStates = [...prev];
-        newStates[selectedAppIndex] = true;
-        return newStates;
-      });
+      if (chaosMode) {
+        // Update all apps in chaos mode
+        setLoadingStates(new Array(6).fill(true));
+        
+        try {
+          // Create an array of promises for all apps
+          const updatePromises = appTitles.map(async (title, index) => {
+            const framework =
+              title === "Standard Version"
+                ? "bootstrap"
+                : title === "Visual Focus"
+                ? "materialize"
+                : title === "Minimalist Version"
+                ? "pure"
+                : title === "Creative Approach"
+                ? "tailwind"
+                : title === "Accessible Version"
+                ? "foundation"
+                : "Bulma";
 
-      try {
-        const framework =
-          appTitles[selectedAppIndex] === "Standard Version"
-            ? "bootstrap"
-            : appTitles[selectedAppIndex] === "Visual Focus"
-            ? "materialize"
-            : appTitles[selectedAppIndex] === "Minimalist Version"
-            ? "pure"
-            : appTitles[selectedAppIndex] === "Creative Approach"
-            ? "tailwind"
-            : appTitles[selectedAppIndex] === "Accessible Version"
-            ? "foundation"
-            : "Bulma";
+            const response = await fetch("/api/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                prompt,
+                existingCode: editedResults[index],
+                framework,
+                isUpdate: true,
+              }),
+            });
 
-        const response = await fetch("/api/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt,
-            existingCode: editedResults[selectedAppIndex],
-            framework,
-            isUpdate: true,
-          }),
-        });
+            if (!response.ok) {
+              throw new Error(`Failed to update app ${index + 1}`);
+            }
 
-        if (!response.ok) {
-          throw new Error(`Failed to update app ${selectedAppIndex + 1}`);
+            const data = await response.json();
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            return { index, code: data.code };
+          });
+
+          // Wait for all updates to complete
+          const results = await Promise.all(updatePromises);
+          
+          // Update all results at once
+          setEditedResults((prev) => {
+            const newResults = [...prev];
+            results.forEach(result => {
+              newResults[result.index] = result.code;
+            });
+            return newResults;
+          });
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Failed to update applications in chaos mode"
+          );
+        } finally {
+          setLoadingStates(new Array(6).fill(false));
         }
-
-        const data = await response.json();
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        setEditedResults((prev) => {
-          const newResults = [...prev];
-          newResults[selectedAppIndex] = data.code;
-          return newResults;
-        });
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to update application"
-        );
-      } finally {
+      } else {
+        // Update only the selected app (original behavior)
         setLoadingStates((prev) => {
           const newStates = [...prev];
-          newStates[selectedAppIndex] = false;
+          newStates[selectedAppIndex] = true;
           return newStates;
         });
+
+        try {
+          const framework =
+            appTitles[selectedAppIndex] === "Standard Version"
+              ? "bootstrap"
+              : appTitles[selectedAppIndex] === "Visual Focus"
+              ? "materialize"
+              : appTitles[selectedAppIndex] === "Minimalist Version"
+              ? "pure"
+              : appTitles[selectedAppIndex] === "Creative Approach"
+              ? "tailwind"
+              : appTitles[selectedAppIndex] === "Accessible Version"
+              ? "foundation"
+              : "Bulma";
+
+          const response = await fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt,
+              existingCode: editedResults[selectedAppIndex],
+              framework,
+              isUpdate: true,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to update app ${selectedAppIndex + 1}`);
+          }
+
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          setEditedResults((prev) => {
+            const newResults = [...prev];
+            newResults[selectedAppIndex] = data.code;
+            return newResults;
+          });
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Failed to update application"
+          );
+        } finally {
+          setLoadingStates((prev) => {
+            const newStates = [...prev];
+            newStates[selectedAppIndex] = false;
+            return newStates;
+          });
+        }
       }
     } else {
       setLoadingStates(new Array(6).fill(true));
@@ -244,7 +308,7 @@ export default function Results() {
   };
 
   const handleVoiceInput = (text: string) => {
-    handleNewPrompt(text, true);
+    handleNewPrompt(text, true, false); // Default to single mode for voice input
   };
 
   useEffect(() => {
