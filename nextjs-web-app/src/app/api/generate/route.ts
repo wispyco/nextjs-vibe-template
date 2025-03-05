@@ -1,4 +1,4 @@
-import { OpenAI } from 'openai';
+import { Portkey } from 'portkey-ai';
 import { NextResponse, NextRequest } from 'next/server';
 
 export const runtime = 'edge';
@@ -49,14 +49,31 @@ export async function POST(req: NextRequest) {
   try {
     const { prompt, variation, framework } = body;
     
-    const groqApiKey = process.env.GROQ_API_KEY;
-    if (!groqApiKey) {
-      return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
+    const portkeyApiKey = process.env.PORTKEY_API_KEY;
+    if (!portkeyApiKey) {
+      return NextResponse.json({ error: 'PORTKEY_API_KEY not configured' }, { status: 500 });
     }
 
-    const client = new OpenAI({
-      apiKey: groqApiKey,
-      baseURL: 'https://api.groq.com/openai/v1',
+    // Configure Portkey with main provider (groq) and fallback (openrouter)
+    const portkey = new Portkey({
+      apiKey: portkeyApiKey,
+      strategy: {
+        mode: "fallback"
+      },
+      targets: [
+        {
+          virtual_key: "groq-virtual-ke-9479cd",
+          override_params: {
+            model: "llama-3.2-1b-preview"
+          }
+        },
+        {
+          virtual_key: "openrouter-07e727",
+          override_params: {
+            model: "meta-llama/llama-3.2-1b-instruct"
+          }
+        }
+      ]
     });
 
     const frameworkInstructions = framework ? frameworkPrompts[framework as keyof typeof frameworkPrompts] : '';
@@ -130,8 +147,7 @@ Additional Notes:
 Format the code with proper indentation and spacing for readability.`;
     }
 
-    const response = await client.chat.completions.create({
-      model: 'llama-3.2-1b-preview',
+    const response = await portkey.chat.completions.create({
       messages: [{ role: 'user', content: fullPrompt }],
       temperature: 0.7,
       max_tokens: 4096,
