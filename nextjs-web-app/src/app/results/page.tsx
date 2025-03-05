@@ -13,6 +13,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import PromptInput from "@/components/DevTools/PromptInput";
 import PerformanceMetrics from "@/components/DevTools/PerformanceMetrics";
 import VoiceInput from "@/components/DevTools/VoiceInput";
+import MockDeployButton from "@/components/MockDeployButton";
 import styled from "styled-components";
 
 const LoadingContainer = styled.div`
@@ -451,12 +452,20 @@ export default function Results() {
                         </ShortLoadingBar>
                       </LoadingContainer>
                     ) : (
-                      <CodePreviewPanel
-                        code={editedResults[selectedAppIndex] || ""}
-                        onChange={handleCodeChange}
-                        isLoading={loadingStates[selectedAppIndex]}
-                        theme={theme}
-                      />
+                      <div className="relative h-full">
+                        <CodePreviewPanel
+                          code={editedResults[selectedAppIndex] || ""}
+                          onChange={handleCodeChange}
+                          isLoading={loadingStates[selectedAppIndex]}
+                          theme={theme}
+                          deployButton={
+                            <MockDeployButton 
+                              code={editedResults[selectedAppIndex] || ""} 
+                              theme={theme} 
+                            />
+                          }
+                        />
+                      </div>
                     )}
                   </BrowserContainer>
                 </div>
