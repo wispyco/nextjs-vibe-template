@@ -491,6 +491,7 @@ function ResultsContent() {
                             }}
                             isLoading={loadingStates[index]}
                             theme={theme}
+                            showControls={false}
                           />
                         )}
                       </BrowserContainer>

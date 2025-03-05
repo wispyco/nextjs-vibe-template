@@ -10,6 +10,7 @@ interface CodePreviewPanelProps {
   isLoading?: boolean;
   theme: "light" | "dark";
   deployButton?: React.ReactNode;
+  showControls?: boolean;
 }
 
 export default function CodePreviewPanel({ 
@@ -18,7 +19,8 @@ export default function CodePreviewPanel({
   onChange, 
   isLoading = false,
   theme,
-  deployButton
+  deployButton,
+  showControls = true
 }: CodePreviewPanelProps) {
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [editedCode, setEditedCode] = useState(code);
@@ -38,31 +40,33 @@ export default function CodePreviewPanel({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between px-4 py-2">
-        <div>{deployButton}</div>
-        <div className="space-x-2">
-          <button
-            onClick={() => setActiveTab('preview')}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'preview'
-                ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                : theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            Preview
-          </button>
-          <button
-            onClick={() => setActiveTab('code')}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'code'
-                ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                : theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            Code
-          </button>
+      {showControls && (
+        <div className="flex items-center justify-between px-4 py-2">
+          <div>{deployButton}</div>
+          <div className="space-x-2">
+            <button
+              onClick={() => setActiveTab('preview')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'preview'
+                  ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                  : theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Preview
+            </button>
+            <button
+              onClick={() => setActiveTab('code')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'code'
+                  ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                  : theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Code
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 min-h-0">
         {activeTab === 'preview' ? (
