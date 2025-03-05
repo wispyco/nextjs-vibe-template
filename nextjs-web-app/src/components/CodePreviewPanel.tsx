@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Editor from '@monaco-editor/react';
 
 interface CodePreviewPanelProps {
   code: string;
@@ -74,7 +75,7 @@ export default function CodePreviewPanel({
           </div>
         ) : (
           <div className="h-full">
-            <MonacoEditor
+            <Editor
               height="100%"
               defaultLanguage="html"
               theme={theme === 'dark' ? "vs-dark" : "light"}
