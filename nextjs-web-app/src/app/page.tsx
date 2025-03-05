@@ -129,7 +129,9 @@ export default function Home() {
   ];
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const [showSignupModal, setShowSignupModal] = useState(false);
+
+  const handleSubmit = async () => {
     if (!prompt) {
       setError("Please enter a prompt to generate web applications.");
       return;
@@ -137,12 +139,52 @@ export default function Home() {
 
     setError(null);
     setIsLoading(true);
-    router.push(`/results?prompt=${encodeURIComponent(prompt)}`);
-    setIsLoading(false);
+    
+    try {
+      // Make a test request to check rate limit before redirecting
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: prompt.substring(0, 50), // Just send a small part of the prompt for the check
+          variation: "rate-limit-check",
+          framework: "none",
+        }),
+      });
+      
+      if (response.status === 429) {
+        // Rate limit exceeded
+        setShowSignupModal(true);
+        setIsLoading(false);
+        return;
+      }
+      
+      const data = await response.json();
+      if (data.error === "rate_limit_exceeded") {
+        setShowSignupModal(true);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If no rate limit issues, proceed to results page
+      router.push(`/results?prompt=${encodeURIComponent(prompt)}`);
+    } catch (error) {
+      console.error("Error checking rate limit:", error);
+      // Still try to navigate even if there was an error checking rate limit
+      router.push(`/results?prompt=${encodeURIComponent(prompt)}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="relative min-h-screen w-full">
+      {showSignupModal && (
+        <SignupModal
+          isOpen={showSignupModal}
+          onClose={() => setShowSignupModal(false)}
+        />
+      )}
       <div className="relative z-10">
         <HeroGeometric badge="" title1="Chaos Coder" title2="9x Dev">
           <div className="w-full max-w-3xl mx-auto">

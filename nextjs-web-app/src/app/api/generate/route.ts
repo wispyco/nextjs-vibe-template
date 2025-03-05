@@ -30,8 +30,10 @@ export async function POST(req: NextRequest) {
     });
   }
   
-  // Increment count for this IP
-  submissionCounts.set(ip, count + 1);
+  // Only increment count for real generations, not rate limit checks
+  if (req.body && typeof req.body === 'object' && req.body.variation !== 'rate-limit-check') {
+    submissionCounts.set(ip, count + 1);
+  }
   try {
     const { prompt, variation, framework } = await req.json();
     
