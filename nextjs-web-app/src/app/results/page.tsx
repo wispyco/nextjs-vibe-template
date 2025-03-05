@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AuroraBackground } from "@/components/ui/aurora-background";
@@ -13,6 +13,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import PromptInput from "@/components/DevTools/PromptInput";
 import PerformanceMetrics from "@/components/DevTools/PerformanceMetrics";
 import VoiceInput from "@/components/DevTools/VoiceInput";
+import MockDeployButton from "@/components/MockDeployButton";
+import { SignupModal } from "@/components/SignupModal";
 import styled from "styled-components";
 
 const LoadingContainer = styled.div`
@@ -51,16 +53,19 @@ const ShortLoadingBar = styled(LoadingBar)`
   max-width: 300px;
 `;
 
-export default function Results() {
+// Wrapper component that uses searchParams
+function ResultsContent() {
+  const NUM_APPS = 9; // Single variable to control number of apps
+  
   const searchParams = useSearchParams();
   const [loadingStates, setLoadingStates] = useState<boolean[]>(
-    new Array(5).fill(true)
+    new Array(NUM_APPS).fill(true)
   );
-  const [results, setResults] = useState<string[]>(new Array(5).fill(""));
+  const [results, setResults] = useState<string[]>(new Array(NUM_APPS).fill(""));
   const [error, setError] = useState<string | null>(null);
   const [selectedAppIndex, setSelectedAppIndex] = useState(0);
   const [editedResults, setEditedResults] = useState<string[]>(
-    new Array(5).fill("")
+    new Array(NUM_APPS).fill("")
   );
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [isMetricsOpen, setIsMetricsOpen] = useState(false);
@@ -68,6 +73,7 @@ export default function Results() {
     [key: number]: number;
   }>({});
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [showSignupModal, setShowSignupModal] = useState(false);
   const { theme } = useTheme();
 
   const variations = [
@@ -76,6 +82,11 @@ export default function Results() {
     "Focus on simplicity and performance. Use minimal dependencies.",
     "Add some creative features that might not be explicitly mentioned in the prompt.",
     "Create an enhanced version with additional features and modern design patterns.",
+    "Build a version with accessibility and internationalization features in mind.",
+    "Create a version optimized for mobile devices with responsive design.",
+    "Build a version with advanced animations and interactive elements.",
+    "Create a version with data visualization capabilities.",
+    "Build a version with offline functionality and progressive web app features.",
   ];
 
   const appTitles = [
@@ -84,6 +95,11 @@ export default function Results() {
     "Minimalist Version",
     "Creative Approach",
     "Enhanced Version",
+    "Accessible Version",
+    "Mobile Optimized",
+    "Interactive Version",
+    "Data Visualization",
+    "Progressive Web App",
   ];
 
   // Handle keyboard shortcuts
@@ -120,6 +136,8 @@ export default function Results() {
           ? "pure"
           : appTitles[index] === "Creative Approach"
           ? "tailwind"
+          : appTitles[index] === "Accessible Version"
+          ? "foundation"
           : "Bulma";
 
       const response = await fetch("/api/generate", {
@@ -132,12 +150,21 @@ export default function Results() {
         }),
       });
 
+      if (response.status === 429) {
+        // Show signup modal for rate limit
+        setShowSignupModal(true);
+        throw new Error("Rate limit exceeded. Please create an account to continue.");
+      }
+
       if (!response.ok) {
         throw new Error(`Failed to generate app ${index + 1}`);
       }
 
       const data = await response.json();
-      if (data.error) {
+      if (data.error === "rate_limit_exceeded") {
+        setShowSignupModal(true);
+        throw new Error("Rate limit exceeded. Please create an account to continue.");
+      } else if (data.error) {
         throw new Error(data.error);
       }
 
@@ -171,80 +198,146 @@ export default function Results() {
     }
   };
 
-  const handleNewPrompt = async (prompt: string, isUpdate: boolean = false) => {
+  const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false) => {
     if (isUpdate) {
-      setLoadingStates((prev) => {
-        const newStates = [...prev];
-        newStates[selectedAppIndex] = true;
-        return newStates;
-      });
+      if (chaosMode) {
+        // Update all apps in chaos mode
+        setLoadingStates(new Array(6).fill(true));
+        
+        try {
+          // Create an array of promises for all apps
+          const updatePromises = appTitles.map(async (title, index) => {
+            const framework =
+              title === "Standard Version"
+                ? "bootstrap"
+                : title === "Visual Focus"
+                ? "materialize"
+                : title === "Minimalist Version"
+                ? "pure"
+                : title === "Creative Approach"
+                ? "tailwind"
+                : title === "Accessible Version"
+                ? "foundation"
+                : "Bulma";
 
-      try {
-        const framework =
-          appTitles[selectedAppIndex] === "Standard Version"
-            ? "bootstrap"
-            : appTitles[selectedAppIndex] === "Visual Focus"
-            ? "materialize"
-            : appTitles[selectedAppIndex] === "Minimalist Version"
-            ? "pure"
-            : appTitles[selectedAppIndex] === "Creative Approach"
-            ? "tailwind"
-            : "Bulma";
+            const response = await fetch("/api/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                prompt,
+                existingCode: editedResults[index],
+                framework,
+                isUpdate: true,
+              }),
+            });
 
-        const response = await fetch("/api/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt,
-            existingCode: editedResults[selectedAppIndex],
-            framework,
-            isUpdate: true,
-          }),
-        });
+            if (!response.ok) {
+              throw new Error(`Failed to update app ${index + 1}`);
+            }
 
-        if (!response.ok) {
-          throw new Error(`Failed to update app ${selectedAppIndex + 1}`);
+            const data = await response.json();
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            return { index, code: data.code };
+          });
+
+          // Wait for all updates to complete
+          const results = await Promise.all(updatePromises);
+          
+          // Update all results at once
+          setEditedResults((prev) => {
+            const newResults = [...prev];
+            results.forEach(result => {
+              newResults[result.index] = result.code;
+            });
+            return newResults;
+          });
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Failed to update applications in chaos mode"
+          );
+        } finally {
+          setLoadingStates(new Array(6).fill(false));
         }
-
-        const data = await response.json();
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        setEditedResults((prev) => {
-          const newResults = [...prev];
-          newResults[selectedAppIndex] = data.code;
-          return newResults;
-        });
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to update application"
-        );
-      } finally {
+      } else {
+        // Update only the selected app (original behavior)
         setLoadingStates((prev) => {
           const newStates = [...prev];
-          newStates[selectedAppIndex] = false;
+          newStates[selectedAppIndex] = true;
           return newStates;
         });
+
+        try {
+          const framework =
+            appTitles[selectedAppIndex] === "Standard Version"
+              ? "bootstrap"
+              : appTitles[selectedAppIndex] === "Visual Focus"
+              ? "materialize"
+              : appTitles[selectedAppIndex] === "Minimalist Version"
+              ? "pure"
+              : appTitles[selectedAppIndex] === "Creative Approach"
+              ? "tailwind"
+              : appTitles[selectedAppIndex] === "Accessible Version"
+              ? "foundation"
+              : "Bulma";
+
+          const response = await fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt,
+              existingCode: editedResults[selectedAppIndex],
+              framework,
+              isUpdate: true,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to update app ${selectedAppIndex + 1}`);
+          }
+
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          setEditedResults((prev) => {
+            const newResults = [...prev];
+            newResults[selectedAppIndex] = data.code;
+            return newResults;
+          });
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Failed to update application"
+          );
+        } finally {
+          setLoadingStates((prev) => {
+            const newStates = [...prev];
+            newStates[selectedAppIndex] = false;
+            return newStates;
+          });
+        }
       }
     } else {
-      setLoadingStates(new Array(5).fill(true));
-      setResults(new Array(5).fill(""));
-      setEditedResults(new Array(5).fill(""));
+      setLoadingStates(new Array(NUM_APPS).fill(true));
+      setResults(new Array(NUM_APPS).fill(""));
+      setEditedResults(new Array(NUM_APPS).fill(""));
       setGenerationTimes({});
       Promise.all(variations.map((_, index) => generateApp(index, prompt)));
     }
   };
 
   const handleVoiceInput = (text: string) => {
-    handleNewPrompt(text, true);
+    handleNewPrompt(text, true, false); // Default to single mode for voice input
   };
 
   useEffect(() => {
     const prompt = searchParams.get("prompt");
     if (!prompt) {
       setError("No prompt provided");
-      setLoadingStates(new Array(5).fill(false));
+      setLoadingStates(new Array(NUM_APPS).fill(false));
       return;
     }
 
@@ -258,8 +351,26 @@ export default function Results() {
     setEditedResults(newResults);
   };
 
+  // Function to handle clicking on a tile
+  const handleTileClick = (index: number) => {
+    setSelectedAppIndex(index);
+    // Scroll to the detailed view
+    setTimeout(() => {
+      document.getElementById('detailed-view')?.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
+  };
+
   return (
     <AuroraBackground>
+      {showSignupModal && (
+        <SignupModal
+          isOpen={showSignupModal}
+          onClose={() => setShowSignupModal(false)}
+        />
+      )}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -282,7 +393,7 @@ export default function Results() {
               }`}
             >
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 ">
-                10x.Dev
+                Chaos Coder
               </span>
             </motion.h1>
             <div className="flex items-center gap-4">
@@ -319,30 +430,90 @@ export default function Results() {
           )}
 
           {results.length > 0 && (
-            <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-10rem)]">
-              {/* Left side - App tiles */}
-              <div className="lg:w-1/4 flex flex-col gap-4 h-full overflow-y-auto pr-2">
+            <div className="h-[calc(100vh-10rem)] overflow-y-auto">
+              {/* Grid of all app previews */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {appTitles.map((title, index) => (
-                  <AppTile
+                  <motion.div
                     key={title}
-                    title={title}
-                    isSelected={selectedAppIndex === index}
-                    onClick={() => setSelectedAppIndex(index)}
-                    isLoading={loadingStates[index]}
-                    theme={theme}
-                  />
+                    className={`rounded-lg overflow-hidden border ${
+                      selectedAppIndex === index 
+                        ? theme === "dark" 
+                          ? "border-indigo-500/50 ring-2 ring-indigo-500/30" 
+                          : "border-indigo-500 ring-2 ring-indigo-300/50"
+                        : theme === "dark"
+                          ? "border-gray-700"
+                          : "border-gray-200"
+                    } transition-all duration-200 cursor-pointer`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={() => handleTileClick(index)}
+                  >
+                    <div className="h-[300px]">
+                      <BrowserContainer theme={theme} title={title}>
+                        {loadingStates[index] ? (
+                          <LoadingContainer>
+                            <LoadingTitle>Generating</LoadingTitle>
+                            <LoadingBar>
+                              <LoadingProgress
+                                animate={{
+                                  x: ["-100%", "100%"],
+                                }}
+                                transition={{
+                                  repeat: Infinity,
+                                  duration: 1.5,
+                                  ease: "linear",
+                                }}
+                              />
+                            </LoadingBar>
+                            <ShortLoadingBar>
+                              <LoadingProgress
+                                animate={{
+                                  x: ["-100%", "100%"],
+                                }}
+                                transition={{
+                                  repeat: Infinity,
+                                  duration: 2,
+                                  ease: "linear",
+                                  delay: 0.2,
+                                }}
+                              />
+                            </ShortLoadingBar>
+                          </LoadingContainer>
+                        ) : (
+                          <CodePreviewPanel
+                            code={editedResults[index] || ""}
+                            onChange={(newCode) => {
+                              const newResults = [...editedResults];
+                              newResults[index] = newCode;
+                              setEditedResults(newResults);
+                            }}
+                            isLoading={loadingStates[index]}
+                            theme={theme}
+                          />
+                        )}
+                      </BrowserContainer>
+                    </div>
+                  </motion.div>
                 ))}
               </div>
-
-              {/* Right side - Code preview panel */}
+              
+              {/* Expanded view of selected app */}
               <motion.div
-                className="lg:w-3/4 h-full"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
+                id="detailed-view"
+                className="mt-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
               >
-                <div className="h-full ">
-                  <BrowserContainer theme={theme}>
+                <h2 className={`text-xl font-semibold mb-4 ${
+                  theme === "dark" ? "text-white" : "text-gray-900"
+                }`}>
+                  {appTitles[selectedAppIndex]} - Detailed View
+                </h2>
+                <div className="h-[500px]">
+                  <BrowserContainer theme={theme} title={`${appTitles[selectedAppIndex]} - Detailed View`}>
                     {loadingStates[selectedAppIndex] ? (
                       <LoadingContainer>
                         <LoadingTitle>Generating</LoadingTitle>
@@ -373,12 +544,20 @@ export default function Results() {
                         </ShortLoadingBar>
                       </LoadingContainer>
                     ) : (
-                      <CodePreviewPanel
-                        code={editedResults[selectedAppIndex] || ""}
-                        onChange={handleCodeChange}
-                        isLoading={loadingStates[selectedAppIndex]}
-                        theme={theme}
-                      />
+                      <div className="relative h-full">
+                        <CodePreviewPanel
+                          code={editedResults[selectedAppIndex] || ""}
+                          onChange={handleCodeChange}
+                          isLoading={loadingStates[selectedAppIndex]}
+                          theme={theme}
+                          deployButton={
+                            <MockDeployButton 
+                              code={editedResults[selectedAppIndex] || ""} 
+                              theme={theme} 
+                            />
+                          }
+                        />
+                      </div>
                     )}
                   </BrowserContainer>
                 </div>
@@ -402,5 +581,21 @@ export default function Results() {
         <VoiceInput onInput={(text) => handleVoiceInput(text)} theme={theme} />
       )}
     </AuroraBackground>
+  );
+}
+
+// Main component with Suspense boundary
+export default function Results() {
+  return (
+    <Suspense fallback={
+      <div className="w-full h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-4">Loading...</h2>
+          <div className="w-16 h-16 border-4 border-gray-300 border-t-indigo-500 rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    }>
+      <ResultsContent />
+    </Suspense>
   );
 }

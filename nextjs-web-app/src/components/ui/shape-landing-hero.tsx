@@ -155,7 +155,7 @@ function HeroGeometric({
           className="absolute top-5 left-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] mb-2 md:mb-14"
         >
           <Circle className="h-3 w-3 fill-green-500/80" />
-          <span className="text-base text-white/60 tracking-wide">10x.dev</span>
+          {/* <span className="text-base text-white/60 tracking-wide">Chaos Coder</span> */}
         </motion.div>
 
         <div className="max-w-3xl mx-auto text-center">
@@ -187,11 +187,13 @@ function HeroGeometric({
             animate="visible"
           >
             <p className="text-base sm:text-lg md:text-xl text-white/60 mb-8 font-light tracking-wide max-w-xl mx-auto px-4">
-              Describe your dream web application below, and our AI will bring
-              it to life in{" "}
+              Enter your prompt and we will spin up 9 separate websites
+              {" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 ">
-                5 different ways!
+                IN SECONDS
               </span>
+              {" "}
+              for you to chaotically edit!
             </p>
           </motion.div>
 
