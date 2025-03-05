@@ -89,3 +89,15 @@ npm start
 ## Note
 
 For best results, be as specific as possible when describing your application requirements. The more detailed your input, the more tailored the generated solutions will be.
+
+## Demo
+
+Check out the demo video to see 10xDev in action:
+
+[Chaos Coder Demo Video](./chaos%20coder%20demo.mp4)
+
+## Community
+
+Join our Discord community for support, discussions, and updates:
+
+[Join the Discord Server](https://discord.gg/cK9WeQ7jPq)
