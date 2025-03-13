@@ -54,3 +54,6 @@ next-env.d.ts
 *.bak
 *.tmp
 *.swp
+
+# Sensitive files
+scripts/.temp-connection
