@@ -4,6 +4,7 @@ import "./globals.css";
 import StyledComponentsRegistry from "@/components/styled-components-registry";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { GenerationsProvider } from "@/context/GenerationsContext";
 import { AuthButtonWrapper } from "@/components/auth/AuthButtonWrapper";
 import StripeProvider from "@/components/StripeProvider";
 
@@ -38,10 +39,12 @@ export default function RootLayout({
         <StyledComponentsRegistry>
           <ThemeProvider>
             <AuthProvider>
-              <StripeProvider>
-                <AuthButtonWrapper />
-                {children}
-              </StripeProvider>
+              <GenerationsProvider>
+                <StripeProvider>
+                  <AuthButtonWrapper />
+                  {children}
+                </StripeProvider>
+              </GenerationsProvider>
             </AuthProvider>
           </ThemeProvider>
         </StyledComponentsRegistry>

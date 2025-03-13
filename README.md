@@ -6,7 +6,7 @@
 
 ## Overview
 
-Chaos Coder is a Next.js application that generates five variations of web applications simultaneously using AI. This tool helps developers quickly explore different implementation possibilities for their web application ideas.
+Chaos Coder is a Next.js application that generates multiple variations of web applications simultaneously using AI. This tool helps developers quickly explore different implementation possibilities for their web application ideas.
 
 **Note:** All the code for this project is located in the `nextjs-web-app` folder.
 
@@ -29,17 +29,22 @@ This project contains several important files that form the core functionality:
 ### UI Components
 - **`nextjs-web-app/src/components/SubscriptionPlans.tsx` (16KB)**: Component for displaying and managing subscription tiers and plans.
 
+### Context Providers
+- **`nextjs-web-app/src/context/AuthContext.tsx`**: Centralized authentication context that manages user sessions, tokens, and authentication state.
+- **`nextjs-web-app/src/context/ThemeContext.tsx`**: Theme management context for light/dark mode.
+- **`nextjs-web-app/src/context/GenerationsContext.tsx`**: Context for managing the number of web application variations to generate. Provides consistent state across the application.
+
 ### Assets
 - **`nextjs-web-app/public/favicon.ico` (124KB)**: The website favicon.
 - **`nextjs-web-app/public/coin.png` (100KB)**: Image asset for the credit/token system.
 
 ## Purpose
 
-The purpose of Chaos Coder is to accelerate the development process by providing multiple variations of code solutions for web applications. By generating five different approaches at once, developers can compare and choose the best implementation for their specific needs.
+The purpose of Chaos Coder is to accelerate the development process by providing multiple variations of code solutions for web applications. By generating multiple different approaches at once, developers can compare and choose the best implementation for their specific needs.
 
 ## Features
 
-- Generates five unique web application variations
+- Generates multiple unique web application variations (configurable with no upper limit)
 - Real-time code preview for each variation
 - Interactive interface with theme toggling (light/dark mode)
 - Voice input support for hands-free prompting
@@ -51,6 +56,7 @@ The purpose of Chaos Coder is to accelerate the development process by providing
 - Credit purchase system for additional generations
 - User profile management with first name personalization
 - Responsive design for mobile and desktop
+- Persistent settings via localStorage
 
 ## Tech Stack
 
@@ -204,6 +210,9 @@ nextjs-web-app/
 │   │   ├── auth/     # Authentication components
 │   │   └── ...       # Other components
 │   ├── context/      # React context providers
+│   │   ├── auth/     # Authentication context
+│   │   ├── theme/    # Theme management context
+│   │   └── generations/ # Generations context
 │   ├── lib/          # Utility functions and services
 │   │   ├── auth/     # Centralized authentication service
 │   │   ├── payment/  # Payment processing service

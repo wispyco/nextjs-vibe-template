@@ -13,15 +13,16 @@ import { DESIGN_STYLES, DEFAULT_STYLES } from "@/config/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuthService } from "@/lib/auth";
 import { useAuth } from "@/context/AuthContext";
+import { useGenerations } from "@/context/GenerationsContext";
 import { User } from "@supabase/supabase-js";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [numGenerations, setNumGenerations] = useState(9);
-  const [styles, setStyles] = useState<string[]>(DEFAULT_STYLES.slice(0, 9));
+  const { numGenerations, incrementGenerations, decrementGenerations } = useGenerations();
+  const [styles, setStyles] = useState<string[]>(DEFAULT_STYLES.slice(0, numGenerations));
   const [customStyles, setCustomStyles] = useState<string[]>(
-    Array(9).fill("")
+    Array(numGenerations).fill("")
   );
   const [isStyleSettingsExpanded, setIsStyleSettingsExpanded] = useState(false);
   const router = useRouter();
@@ -63,6 +64,38 @@ export default function Home() {
     
     checkUser();
   }, []);
+
+  // Update styles and customStyles when numGenerations changes
+  useEffect(() => {
+    setStyles(prev => {
+      // If we need more styles than we currently have
+      if (numGenerations > prev.length) {
+        // Add new styles from DEFAULT_STYLES, cycling if needed
+        const newStyles = [...prev];
+        for (let i = prev.length; i < numGenerations; i++) {
+          newStyles.push(DEFAULT_STYLES[i % DEFAULT_STYLES.length]);
+        }
+        return newStyles;
+      } 
+      // If we need fewer styles
+      else if (numGenerations < prev.length) {
+        return prev.slice(0, numGenerations);
+      }
+      return prev;
+    });
+
+    setCustomStyles(prev => {
+      // If we need more custom styles
+      if (numGenerations > prev.length) {
+        return [...prev, ...Array(numGenerations - prev.length).fill("")];
+      } 
+      // If we need fewer custom styles
+      else if (numGenerations < prev.length) {
+        return prev.slice(0, numGenerations);
+      }
+      return prev;
+    });
+  }, [numGenerations]);
   
   // Animate the gradient
   useEffect(() => {
@@ -133,40 +166,6 @@ export default function Home() {
       }
     }
   }, []);
-
-  // Handle number of generations changes
-  const incrementGenerations = () => {
-    setNumGenerations((prev) => {
-      const newNum = prev + 1;
-      
-      // Find the next unused style option
-      setStyles((current) => {
-        // If we've used all styles in DEFAULT_STYLES, start cycling through them
-        if (newNum <= DEFAULT_STYLES.length) {
-          // We still have unused default styles
-          return DEFAULT_STYLES.slice(0, newNum);
-        } else {
-          // We need to cycle through the styles
-          return [...current, DEFAULT_STYLES[(newNum - 1) % DEFAULT_STYLES.length]];
-        }
-      });
-      
-      setCustomStyles((current) => [...current, ""]);
-      return newNum;
-    });
-  };
-
-  const decrementGenerations = () => {
-    setNumGenerations((prev) => {
-      if (prev <= 1) return prev;
-      
-      const newNum = prev - 1;
-      // Remove style from the last generation
-      setStyles((current) => current.slice(0, newNum));
-      setCustomStyles((current) => current.slice(0, newNum));
-      return newNum;
-    });
-  };
 
   // Handle style selection
   const handleStyleChange = (index: number, value: string) => {

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { useTheme } from "@/context/ThemeContext";
+import { useGenerations } from "@/context/GenerationsContext";
 import PromptInput from "@/components/DevTools/PromptInput";
 import PerformanceMetrics from "@/components/DevTools/PerformanceMetrics";
 import VoiceInput from "@/components/DevTools/VoiceInput";
@@ -23,13 +24,14 @@ import AppTile from "@/components/AppTile";
 function ResultsContent() {
   const searchParams = useSearchParams();
   const promptParam = searchParams.get('prompt') || '';
+  const { numGenerations: contextNumGenerations } = useGenerations();
   
   // Parse the configuration
   const configParam = searchParams.get('config') || '';
   const defaultConfig = {
-    numGenerations: 9,
-    modelTypes: Array(9).fill(0).map((_, index) => index % 2 === 0 ? "pro" : "fast"),
-    styles: DEFAULT_STYLES.slice(0, 9)
+    numGenerations: contextNumGenerations,
+    modelTypes: Array(contextNumGenerations).fill(0).map((_, index) => index % 2 === 0 ? "pro" : "fast"),
+    styles: DEFAULT_STYLES.slice(0, contextNumGenerations)
   };
   
   let config;
