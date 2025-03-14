@@ -10,7 +10,8 @@
     "deploy": "ts-node deploy.ts",
     "db:migrate": "node scripts/apply-migration.js",
     "db:schema": "node scripts/apply-schema-updates.js",
-    "test:auth": "ts-node scripts/test-auth.ts"
+    "test:auth": "ts-node scripts/test-auth.ts",
+    "test:auth-timeout": "ts-node scripts/test-auth-timeout.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.758.0",

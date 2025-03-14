@@ -151,6 +151,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTokensState(parseInt(storedTokens, 10) || 0);
     }
 
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (isMounted && isLoading) {
+        console.warn("Auth loading timed out after 5 seconds");
+        setIsLoading(false);
+        setUser(null);
+      }
+    }, 5000);
+
     // Check current session
     const checkUser = async () => {
       try {
@@ -226,9 +235,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clean up
     return () => {
       isMounted = false;
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
-  }, [signOut, syncTokensWithDB]);
+  }, [signOut, syncTokensWithDB, isLoading]);
 
   // Separate effect for token updates with debouncing
   useEffect(() => {
