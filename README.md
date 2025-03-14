@@ -302,6 +302,7 @@ The application uses a Supabase PostgreSQL database with the following tables:
      * `subscription_period_start` (TIMESTAMP): Start of current subscription period
      * `subscription_period_end` (TIMESTAMP): End of current subscription period
      * `last_credited_at` (TIMESTAMP): When credits were last refreshed
+     * `last_credit_refresh` (TIMESTAMP): Legacy field for credit refreshes
      * `subscription_tier` (ENUM): 'free', 'pro', or 'ultra'
      * `subscription_status` (ENUM): Status from Stripe (active, past_due, etc.)
      * `updated_at` (TIMESTAMP): Last update timestamp
@@ -341,27 +342,170 @@ The application uses a Supabase PostgreSQL database with the following tables:
      * `type` (TEXT): Transaction type (purchase, usage, reset, etc.)
      * `description` (TEXT): Additional details
      * `created_at` (TIMESTAMP): When transaction occurred
+     * `request_id` (TEXT): Reference to generation request if applicable
+     * `style_index` (TEXT): Style index if this is for a specific generation style
 
 5. `credit_reset_logs`
    - Purpose: Logs when the credit reset function runs
    - Schema:
-     * `id` (UUID): Primary key
+     * `id` (INTEGER): Auto-incrementing primary key
      * `executed_at` (TIMESTAMP): When reset was executed
      * `success` (BOOLEAN): Whether reset was successful
-     * `error_message` (TEXT): Any error details if failed
+     * `error_message` (TEXT): Any error details if failed (optional)
+
+6. `generation_requests`
+   - Purpose: Stores user requests for code generation
+   - Schema:
+     * `id` (UUID): Primary key
+     * `user_id` (UUID): Reference to auth.users
+     * `prompt` (TEXT): The user's input prompt
+     * `config` (JSONB): Configuration for the generation
+     * `created_at` (TIMESTAMP): When request was created
+     * `updated_at` (TIMESTAMP): When request was last updated
+
+7. `generations`
+   - Purpose: Stores the generated code variations
+   - Schema:
+     * `id` (UUID): Primary key
+     * `request_id` (UUID): Foreign key to generation_requests
+     * `style` (TEXT): Generation style identifier
+     * `code` (TEXT): The generated code
+     * `model_type` (TEXT): AI model used for generation
+     * `generation_time` (FLOAT): Time taken to generate the code
+     * `created_at` (TIMESTAMP): When generation was created
+
+8. `admin_users`
+   - Purpose: Stores administrative user information
+   - Schema details omitted for security purposes
+
+9. `audit_log`
+   - Purpose: Logs system events for auditing
+   - Captures security-relevant events like credit modifications
 
 ### Database Functions
 
-The database includes the following secure functions for managing credits:
+The database includes the following secure functions for managing credits and user data:
 
-- `add_user_credits`: Safely add credits to a user
-- `deduct_user_credits`: Safely remove credits from a user
-- `reset_daily_credits`: Automatically refresh credits daily
-- `handle_new_user`: Creates a profile when a new user signs up
+1. `add_user_credits(user_id, amount, type, description)`: 
+   - Purpose: Safely adds credits to a user account
+   - Security: SECURITY DEFINER function to ensure proper authorization
+   - Returns: The user's new credit balance
+   - Creates an audit trail entry in credit_history
 
-### Important Note on Triggers
+2. `deduct_user_credits(user_id, amount, description)`: 
+   - Purpose: Safely removes credits from a user account
+   - Security: SECURITY DEFINER function with validation checks
+   - Returns: The user's new credit balance
+   - Creates an audit trail entry in credit_history with negative amount
 
-When a new user signs up, a trigger automatically creates a profile record for them with default subscription values (free tier, 30 credits).
+3. `deduct_generation_credit(user_id, request_id, style_index)`: 
+   - Purpose: Specialized function for deducting credits for code generation
+   - Security: SECURITY DEFINER function with duplicate prevention
+   - Returns: The user's new credit balance
+   - Creates an audit trail entry with generation metadata
+
+4. `reset_daily_credits()`: 
+   - Purpose: Automatically refreshes credits based on subscription tier
+   - Logic: Free tier gets 30 credits, Pro tier gets 100, Ultra tier gets 1000
+   - Creates audit trail entries for all refreshed accounts
+   - Logs execution in credit_reset_logs
+
+5. `refresh_user_credits(user_id)`: 
+   - Purpose: Refreshes credits for a specific user if they haven't been refreshed today
+   - Returns: The user's new credit balance after refresh
+
+6. `initialize_user_credits()`: 
+   - Purpose: Trigger function to set initial credits when a profile is created
+   - Logic: Sets credits based on subscription tier (30/100/1000)
+
+7. `handle_new_user()`: 
+   - Purpose: Trigger function that creates a profile when a new user signs up
+   - Security: SECURITY DEFINER to ensure proper access
+
+8. `prevent_direct_credits_update()`: 
+   - Purpose: Trigger function that prevents direct updates to the credits field
+   - Security: Only allows updates through proper functions or service_role
+   - Logging: Records unauthorized attempts in audit_log
+
+9. `update_updated_at_column()`: 
+   - Purpose: Trigger function to automatically update timestamp on record changes
+
+10. `exec_sql(sql)`: 
+    - Purpose: Administrative function to execute SQL commands
+    - Security: Restricted to service_role only, used for schema updates
+
+### Database Triggers
+
+The database includes the following triggers:
+
+1. `on_auth_user_created`: 
+   - Table: auth.users
+   - Trigger: AFTER INSERT
+   - Function: handle_new_user()
+   - Purpose: Creates a profile record when a new user signs up
+
+2. `initialize_user_credits_trigger`: 
+   - Table: profiles
+   - Trigger: BEFORE INSERT
+   - Function: initialize_user_credits()
+   - Purpose: Sets initial credit values for new profiles
+
+3. `prevent_direct_credits_update_trigger`: 
+   - Table: profiles
+   - Trigger: BEFORE UPDATE
+   - Function: prevent_direct_credits_update()
+   - Purpose: Prevents unauthorized credit updates
+
+4. `update_profiles_updated_at`: 
+   - Table: profiles
+   - Trigger: BEFORE UPDATE
+   - Function: update_updated_at_column()
+   - Purpose: Updates timestamp when profile records change
+
+### Row Level Security (RLS)
+
+Each table is protected by Row Level Security (RLS) policies:
+
+1. `profiles` table policies:
+   - "Users can view own profile": Users can only select their own profile
+   - "Users can update non-sensitive profile fields": Users can only update their own profile
+   - "Service role can manage all profiles": Service role has full access
+   - "Service role can insert profiles": Service role can create profiles
+
+2. `credit_history`, `credit_purchases`, and `subscription_history` follow similar patterns:
+   - Users can view their own records
+   - Service role can manage all records
+
+### Database Access Patterns
+
+1. Credit management:
+   - Credits are ONLY modified through secure functions
+   - Direct updates to credits field are prevented by triggers
+   - All credit changes are logged in credit_history
+
+2. User provisioning:
+   - When users sign up, a profile is automatically created
+   - Default credits are assigned based on subscription tier
+   - Free tier users start with 30 credits
+
+3. Daily credit refresh:
+   - Credits are automatically reset daily if below the tier threshold
+   - Free tier: 30 credits
+   - Pro tier: 100 credits
+   - Ultra tier: 1000 credits
+
+### Important Database Views
+
+The database includes several views (not documented here) that provide aggregated data for reporting purposes.
+
+### Database Migration and Maintenance
+
+Database schema updates are managed through:
+1. The `exec_sql` function for safe schema modifications
+2. Migration scripts in the `/db/migrations` directory
+3. Backup and restore capabilities via `/db/restore-from-backup.sql`
+
+For complete schema details, refer to the `/db/schema-updates.sql` file.
 
 ## Contributing
 

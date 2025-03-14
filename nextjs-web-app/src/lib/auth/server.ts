@@ -1,62 +1,37 @@
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
-
-// Define cookie store interface for compatibility
-interface CookieStore {
-  getAll: () => Array<{ name: string; value: string }>;
-}
+import type { NextRequest, NextResponse } from 'next/server'
 
 /**
- * Creates a Supabase client for server-side usage
- * This function should be used in API routes, getServerSideProps, or in middleware
- * For Server Components, use createServerComponentClient instead
+ * Creates a Supabase client for the middleware
  */
-export async function createClient(cookieStore?: CookieStore) {
-  // Use provided cookie store or create empty fallback
-  const cookies = cookieStore || {
-    getAll: () => [],
-  };
-
+export function createMiddlewareClient(req: NextRequest, res: NextResponse) {
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
-          return cookies.getAll();
+          return req.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          try {
-            // If we have a setCookie method available
-            if ('set' in cookies && typeof cookies.set === 'function') {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                (cookies as any).set(name, value, options);
-              });
-            } else {
-              // Log this for debugging but don't throw an error
-              console.log('Cookie setting skipped - no set method available in the cookie store');
-            }
-          } catch (e) {
-            // Can be safely ignored if using middleware to refresh sessions
-            console.warn('Error setting cookies in server client:', e);
-          }
+          cookiesToSet.forEach(({ name, value, options }) => {
+            res.cookies.set(name, value, options)
+          })
         },
       },
     }
-  );
+  )
 }
 
 /**
- * Creates a Supabase client specifically for Server Components in the App Router
- * This should be used in React Server Components
+ * Creates a Supabase client for server-side contexts
+ * This function dynamically imports next/headers to avoid SSR issues
  */
-export async function createServerComponentClient() {
+export async function createClient() {
   try {
-    // Use dynamic import to avoid breaking in non-Server Component contexts
-    const { cookies } = await import('next/headers');
-    
-    // Get cookie store
-    const cookieStore = cookies();
+    // Dynamic import to avoid issues in non-App Router contexts
+    const { cookies } = await import('next/headers')
 
     return createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -64,55 +39,98 @@ export async function createServerComponentClient() {
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll();
+            const cookieStore = cookies()
+            return cookieStore.getAll()
           },
           setAll(cookiesToSet) {
             try {
-              cookiesToSet.forEach(({ name, value, options }) =>
+              const cookieStore = cookies()
+              cookiesToSet.forEach(({ name, value, options }) => {
                 cookieStore.set(name, value, options)
-              )
+              })
             } catch {
-              // The `setAll` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
+              // This can be ignored if using middleware to refresh sessions
             }
           },
         },
       }
-    );
-  } catch {
-    // Using fallback error handler
-    throw new Error('This method should only be used in Server Components');
+    )
+  } catch (error) {
+    console.error('Error creating server client:', error)
+    
+    // Return a minimal client that won't throw errors in non-App Router contexts
+    return createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return [] },
+          setAll() { /* empty */ },
+        },
+      }
+    )
   }
 }
 
 /**
  * Creates a Supabase client with admin privileges using the service role key
- * This should ONLY be used for server-side admin operations (like webhooks)
- * that need to bypass RLS policies
  */
 export async function createAdminClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   
   if (!serviceRoleKey) {
-    console.error('SUPABASE_SERVICE_ROLE_KEY is not configured');
-    throw new Error('Admin client configuration error: Missing service role key');
+    throw new Error('Admin client configuration error: Missing SUPABASE_SERVICE_ROLE_KEY')
   }
   
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     serviceRoleKey,
     {
-      // No cookies needed for admin operations
       cookies: {
-        getAll() {
-          return [];
-        },
-        setAll() {
-          // Admin client doesn't need to set cookies
-          return;
-        },
+        getAll() { return [] },
+        setAll() { /* empty */ },
       },
     }
-  );
+  )
+}
+
+/**
+ * Creates a Supabase client for server components.
+ * This should be used in App Router server components and API routes.
+ */
+export function createServerComponentClient() {
+  return {
+    async getClient() {
+      try {
+        // Dynamic import to work with App Router
+        const { cookies } = await import('next/headers')
+        
+        // Create a Supabase client for server-side usage
+        return createServerClient<Database>(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            cookies: {
+              getAll() {
+                return cookies().getAll()
+              },
+              setAll(cookiesToSet) {
+                try {
+                  cookiesToSet.forEach(({ name, value, options }) => {
+                    cookies().set(name, value, options)
+                  })
+                } catch (e) {
+                  // This can be safely ignored if middleware is handling auth
+                  console.log('Cookie setting failed in server component')
+                }
+              },
+            },
+          }
+        )
+      } catch (e) {
+        console.error('Error creating server component client:', e)
+        throw new Error('Failed to create Supabase client')
+      }
+    }
+  }
 } 
