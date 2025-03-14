@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
+import type { User } from '@supabase/supabase-js'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -28,41 +29,49 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
+  try {
+    // Create a promise that rejects after 5 seconds
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Authentication timed out')), 5000)
+    })
 
-  // IMPORTANT: DO NOT REMOVE auth.getUser()
+    // Race between the auth check and the timeout
+    const { data: { user } } = await Promise.race([
+      supabase.auth.getUser(),
+      timeoutPromise
+    ]) as { data: { user: User | null } }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+    if (
+      !user &&
+      !request.nextUrl.pathname.startsWith('/login') &&
+      !request.nextUrl.pathname.startsWith('/auth')
+    ) {
+      return handleAuthFailure(request)
+    }
+  } catch (error: unknown) {
+    // Handle both timeout and auth errors
+    console.error('Authentication failed:', error instanceof Error ? error.message : 'Unknown error')
+    return handleAuthFailure(request)
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
-
   return supabaseResponse
+}
+
+function handleAuthFailure(request: NextRequest) {
+  const response = NextResponse.redirect(new URL('/login', request.url))
+  
+  // Clear all auth-related cookies
+  const cookiesToClear = [
+    'sb-access-token',
+    'sb-refresh-token',
+    'supabase-auth-token'
+  ]
+  
+  cookiesToClear.forEach(cookieName => {
+    response.cookies.delete(cookieName)
+  })
+  
+  return response
 }
 
 export const config = {
