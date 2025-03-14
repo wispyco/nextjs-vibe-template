@@ -902,46 +902,27 @@ export class PaymentService {
   static async cancelSubscription(
     userId: string
   ): Promise<{ success: boolean; message: string }> {
-    console.log(`Starting cancellation for user: ${userId}`);
-    
+    const supabase = await AuthService.createServerClient();
+
     try {
-      // Use admin client for more reliable access to the database
-      const supabase = await AuthService.createAdminClient();
-      
       // Get the user's profile to find their Stripe customer ID
-      console.log(`Looking up profile for user ${userId}`);
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("stripe_customer_id, subscription_tier, subscription_status")
+        .select("stripe_customer_id, subscription_tier")
         .eq("id", userId)
         .single();
 
-      if (profileError) {
-        console.error("Profile lookup error:", profileError);
+      if (profileError || !profile) {
         throw new Error("User profile not found");
       }
 
-      if (!profile) {
-        console.error("No profile found for user:", userId);
-        throw new Error("User profile not found");
-      }
-      
-      console.log(`Found profile: tier=${profile.subscription_tier}, status=${profile.subscription_status}`);
-
-      if (!profile.stripe_customer_id) {
-        console.error("No Stripe customer ID for user:", userId);
-        throw new Error("No Stripe customer ID associated with this account");
-      }
-      
-      if (profile.subscription_tier === "free") {
-        console.error("User already on free tier:", userId);
+      if (!profile.stripe_customer_id || profile.subscription_tier === "free") {
         throw new Error("No active subscription to cancel");
       }
 
       const stripe = this.getStripe();
-      
+
       // Find the subscription ID
-      console.log(`Looking up active subscriptions for customer: ${profile.stripe_customer_id}`);
       const subscriptions = await stripe.subscriptions.list({
         customer: profile.stripe_customer_id,
         status: "active",
@@ -949,49 +930,40 @@ export class PaymentService {
       });
 
       if (subscriptions.data.length === 0) {
-        console.error("No active subscription found for customer:", profile.stripe_customer_id);
         throw new Error("No active subscription found");
       }
-      
-      const subscriptionId = subscriptions.data[0].id;
-      console.log(`Found active subscription: ${subscriptionId}`);
 
       // Cancel the subscription
-      console.log(`Cancelling subscription: ${subscriptionId}`);
-      await stripe.subscriptions.cancel(subscriptionId);
+      await stripe.subscriptions.cancel(subscriptions.data[0].id);
 
       // Update the profile immediately
-      console.log(`Updating profile for user: ${userId}`);
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({
-          subscription_tier: "free",
-          subscription_status: "canceled",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-        
-      if (updateError) {
-        console.error("Error updating profile after cancellation:", updateError);
+      try {
+        await (supabase as any)
+          .from("profiles")
+          .update({
+            subscription_tier: "free",
+            subscription_status: "canceled",
+          })
+          .eq("id", userId);
+      } catch (error) {
+        console.error("Error updating profile after cancellation:", error);
       }
 
       // Add to subscription history
-      console.log(`Recording cancellation in history for user: ${userId}`);
-      const { error: historyError } = await supabase
-        .from("subscription_history")
-        .insert({
+      try {
+        await (supabase as any).from("subscription_history").insert({
           user_id: userId,
           subscription_tier: "free",
           status: "canceled",
-          stripe_subscription_id: subscriptionId,
-          created_at: new Date().toISOString(),
+          stripe_subscription_id: subscriptions.data[0].id,
         });
-        
-      if (historyError) {
-        console.error("Error recording subscription cancellation history:", historyError);
+      } catch (error) {
+        console.error(
+          "Error recording subscription cancellation history:",
+          error
+        );
       }
 
-      console.log(`Subscription successfully cancelled for user: ${userId}`);
       return {
         success: true,
         message:
@@ -1001,9 +973,9 @@ export class PaymentService {
       console.error("Error cancelling subscription:", error);
       return {
         success: false,
-        message: error instanceof Error 
-          ? error.message 
-          : "Failed to cancel subscription",
+        message: `Failed to cancel subscription: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
       };
     }
   }

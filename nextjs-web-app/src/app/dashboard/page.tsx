@@ -285,72 +285,83 @@ export default function DashboardPage() {
         return;
       }
       
-      // Check if this is a downgrade request
-      const isDowngrade = plan.includes(':downgrade');
-      const targetPlan = isDowngrade ? plan.split(':')[0] : plan;
+      console.log(`✅ User verification successful:`, {
+        id: userData.user.id,
+        email: userData.user.email,
+        lastSignIn: userData.user.last_sign_in_at,
+        metadata: userData.user.user_metadata
+      });
       
-      if (isDowngrade) {
-        // For downgrades, use the downgrade API endpoint
-        const response = await fetch('/api/stripe/downgrade', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            // Using the access token directly in the Authorization header
-            'Authorization': `Bearer ${sessionData.session.access_token}`
-          },
-          credentials: 'include',
+      console.log(`🔄 Starting Stripe checkout process for tier: ${plan}`);
+      
+      // Authentication token
+      const accessToken = sessionData.session.access_token;
+      
+      // Request body
+      const requestBody = { 
+        tier: plan,
+        userId: userData.user.id,
+        userEmail: userData.user.email || '',
+      };
+      
+      // Log the request details before making the call
+      console.log(`📤 Outgoing request details:`, {
+        url: '/api/stripe/checkout',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: requestBody
+      });
+      
+      // Make the API call with credentials and proper auth header
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        credentials: 'include', // Include cookies
+        body: JSON.stringify(requestBody),
+      });
+      
+      console.log(`📥 API response details:`, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        url: response.url
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log(`❌ Checkout API error details:`, {
+          status: response.status,
+          errorData,
+          requestUrl: response.url,
+          requestId: response.headers.get('x-request-id'),
+          corsHeaders: {
+            'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+            'access-control-allow-credentials': response.headers.get('access-control-allow-credentials')
+          }
         });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Downgrade API error:', errorData);
-          throw new Error(errorData.error || `HTTP error ${response.status}`);
-        }
-        
-        const data = await response.json();
-        if (data.success) {
-          // Refresh the profile to show updated subscription status
-          await refreshUserProfile();
-          setSuccessMessage(data.message || 'Your subscription has been cancelled successfully.');
-          setTimeout(() => setSuccessMessage(null), 5000);
-        }
+        throw new Error(errorData.error || `HTTP error ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        console.log(`✅ Checkout session created successfully:`, {
+          checkoutUrl: data.url,
+          timestamp: new Date().toISOString()
+        });
+        window.location.href = data.url;
       } else {
-        // For upgrades, use the regular checkout process
-        console.log(`🔄 Starting Stripe checkout process for tier: ${targetPlan}`);
-        
-        // Request body
-        const requestBody = { 
-          tier: targetPlan,
-          userId: userData.user.id,
-          userEmail: userData.user.email || '',
-        };
-        
-        // Make the API call with credentials and proper auth header
-        const response = await fetch('/api/stripe/checkout', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionData.session.access_token}`
-          },
-          credentials: 'include',
-          body: JSON.stringify(requestBody),
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `HTTP error ${response.status}`);
-        }
-        
-        const data = await response.json();
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error("No checkout URL returned");
-        }
+        throw new Error("No checkout URL returned");
       }
     } catch (err) {
       console.error('Checkout error:', err);
-      setError('Failed to process your request. Please try again later.');
+      setError('Failed to start checkout process. Please try again later.');
       setIsUpgrading(false);
     }
   };
