@@ -5,6 +5,8 @@ the root of the project is in the `nextjs-web-app` folder
 
 where possible test all changes using automated scripts
 
+ensure that the frontend DOES NOT ACCESS THE DATABASE DIRECTLY or use the supabase client directly
+
 ---
 # Specify the following for Cursor rules
 description: Guidelines for writing Next.js apps with Supabase Auth

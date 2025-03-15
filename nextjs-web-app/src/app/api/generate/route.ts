@@ -1,36 +1,45 @@
 import { Portkey } from "portkey-ai";
 import { NextResponse, NextRequest } from "next/server";
+import { cookies } from 'next/headers';
 import { getStylePrompt } from "@/config/styles";
-import { SupabaseAdmin } from "@/lib/supabase-admin";
+import { AuthService } from "@/lib/auth";
 
 export const runtime = "edge";
 
+interface DeductionResult {
+  new_credits: number;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // Create a server client with the admin service
-    const supabase = await SupabaseAdmin.getInstance();
+    // Use the AuthService to create a server client
+    const cookieStore = await cookies();
+    const supabase = await AuthService.createServerClient({
+      getAll: () => cookieStore.getAll()
+    });
     
     // Parse the request body
     const body = await req.json();
+    // Log only the core request details without full body
     
     const { prompt, variation = '', framework, customStyle, requestId } = body;
     
-    // Get the current user from the request cookies
-    const { data, error } = await supabase.auth.getUser();
+    // Check if user is authenticated
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (error || !data.user) {
+    if (!user) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
       );
     }
     
-    const user = data.user;
-    
-    // Check for duplicate request using SupabaseAdmin
+    // Check for duplicate request
     if (requestId) {
       try {
-        const { data: existingRequest, error } = await SupabaseAdmin.getInstance().from('credit_history')
+        // Use `any` type here to bypass type checking for now
+        const { data: existingRequest, error } = await (supabase as any)
+          .from('credit_history')
           .select('id')
           .eq('user_id', user.id)
           .eq('request_id', requestId)
@@ -50,23 +59,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Get user's credits using SupabaseAdmin
-    const { credits, error: creditsError } = await SupabaseAdmin.getUserCredits(user.id);
+    // User is authenticated, check their credits
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('credits')
+      .eq('id', user.id)
+      .single();
     
-    if (creditsError) {
-      console.error('[Generate] Error getting user credits:', creditsError);
-      return NextResponse.json(
-        { error: "Failed to check credits" },
-        { status: 500 }
-      );
-    }
-    
-    if (credits < 1) {
+    if (!userProfile || userProfile.credits < 1) {
       return NextResponse.json(
         { error: "Insufficient credits" },
         { status: 402 }
       );
     }
+    
+    // All models now cost exactly 1 credit
+    const modelCost = 1;
 
     // Get the style instructions from our central config
     const styleInstructions = customStyle || (framework && framework !== 'custom' 
@@ -90,30 +98,105 @@ export async function POST(req: NextRequest) {
         },
         targets: [
           {
-            provider: "groq",
-            config: {
-              model: "llama3-70b-8192",
+            virtual_key: "groq-virtual-ke-9479cd",
+            override_params: {
+              model: "qwen-2.5-coder-32b",
             },
           },
           {
-            provider: "openrouter",
-            config: {
-              model: "anthropic/claude-3-opus:beta",
+            virtual_key: "sambanova-6bc4d0",
+            override_params: {
+              model: "Qwen2.5-Coder-32B-Instruct",
+            },
+          },
+          {
+            virtual_key: "cerebras-b79172",
+            override_params: {
+              model: "deepseek-r1-distill-llama-70b",
+            },
+          },
+          {
+            virtual_key: "openrouter-07e727",
+            override_params: {
+              model: "qwen/qwen-2.5-coder-32b-instruct",
             },
           },
         ],
       },
     });
 
-    // Construct the full prompt with style instructions
-    let fullPrompt = prompt;
-    
-    if (styleInstructions) {
-      fullPrompt = `${prompt}\n\nPlease follow these style guidelines:\n${styleInstructions}`;
-    }
+    // Determine if this is an update request
+    const isUpdate = body.isUpdate === true;
+    const existingCode = body.existingCode || "";
 
-    if (variation) {
-      fullPrompt = `${fullPrompt}\n\nFor this specific variation, focus on: ${variation}`;
+    let fullPrompt;
+
+    if (isUpdate) {
+      fullPrompt = `Update the following web application based on these instructions:
+
+Instructions:
+1. Update request: ${prompt}
+2. Style: ${styleInstructions}
+
+EXISTING CODE TO MODIFY:
+\`\`\`html
+${existingCode}
+\`\`\`
+
+Technical Requirements:
+- IMPORTANT: Maintain a SINGLE HTML file structure with all HTML, CSS, and JavaScript
+- Make targeted changes based on the update request
+- Keep all working functionality that isn't explicitly changed
+- Preserve the existing styling approach and design style
+- Ensure all interactive elements continue to work
+- Add clear comments for any new or modified sections
+- Keep all CSS and JS inline, exactly as in the original format
+
+Additional Notes:
+- Return the COMPLETE updated HTML file content
+- Do not remove existing functionality unless specifically requested
+- Do NOT split into multiple files - everything must remain in one HTML file
+- Ensure the code remains well-structured and maintainable
+- Return ONLY the HTML file content without any explanations or markdown
+
+Format the code with proper indentation and spacing for readability.`;
+    } else {
+      fullPrompt = `Create a well-structured, modern web application:
+
+Instructions:
+1. Base functionality: ${prompt}
+2. Variation: ${variation}
+3. Style: ${styleInstructions}
+
+Technical Requirements:
+- IMPORTANT: Create a SINGLE HTML file containing ALL HTML, CSS, and JavaScript
+- Do NOT suggest or imply separate file structures - everything must be in one HTML file
+- Organize the code in this exact order:
+  1. <!DOCTYPE html> and meta tags
+  2. <title> and other head elements 
+  3. Any required CSS framework imports via CDN links
+  4. Custom CSS styles in a <style> tag in the head
+  5. HTML body with semantic markup
+  6. Any required JavaScript libraries via CDN links
+  7. Custom JavaScript in a <script> tag at the end of body
+- Use proper HTML5 semantic elements
+- Include clear spacing between sections
+- Add descriptive comments for each major component
+- Ensure responsive design with mobile-first approach
+- Use modern ES6+ JavaScript features
+- Keep the code modular and well-organized
+- Ensure all interactive elements have proper styling states (hover, active, etc.)
+- Implement the design style specified in the Style instruction
+
+Additional Notes:
+- The code must be complete and immediately runnable in a browser
+- All custom CSS and JavaScript MUST be included inline in the single HTML file
+- NO separate CSS or JS files - include everything in the HTML file
+- Code must work properly when rendered in an iframe
+- Focus on clean, maintainable code structure
+- Return ONLY the HTML file content without any explanations or markdown
+
+Format the code with proper indentation and spacing for readability.`;
     }
 
     try {
@@ -146,32 +229,49 @@ export async function POST(req: NextRequest) {
         code = code.replace(/<think>([\s\S]*?)<\/think>/g, "");
       }
 
-      // Deduct credits using SupabaseAdmin
-      const { error: deductionError } = await SupabaseAdmin.deductGenerationCredit(
-        user.id,
-        requestId || null,
-        variation || null
-      );
-      
-      if (deductionError) {
-        console.error('[Generate] Credit deduction failed:', deductionError);
+      try {
+        // Use a transaction to ensure atomic credit deduction
+        // Use `any` type here to bypass type checking for now
+        const { data, error: deductionError } = await (supabase as any).rpc(
+          'deduct_generation_credit',
+          { 
+            user_id: user.id,
+            request_id: requestId || null
+          }
+        );
+        
+        if (deductionError) {
+          console.error('[Generate] Credit deduction failed:', deductionError);
+          return NextResponse.json(
+            { error: "Failed to deduct credits", details: deductionError.message },
+            { status: 500 }
+          );
+        }
+
+        if (!data || !Array.isArray(data) || !data[0]) {
+          console.error('[Generate] Credit deduction returned no result');
+          return NextResponse.json(
+            { error: "Failed to deduct credits", details: "No result returned" },
+            { status: 500 }
+          );
+        }
+
+        const newCredits = data[0].new_credits;
+
+        return NextResponse.json({ 
+          code,
+          credits: newCredits,
+          cost: modelCost
+        });
+      } catch (error) {
+        console.error('[Generate] Error during credit deduction:', error);
         return NextResponse.json(
-          { error: "Failed to deduct credits", details: deductionError.message },
+          { error: "Failed to deduct credits", details: String(error) },
           { status: 500 }
         );
       }
-
-      // Get the updated credits
-      const { credits: updatedCredits } = await SupabaseAdmin.getUserCredits(user.id);
-
-      return NextResponse.json({
-        code,
-        credits: updatedCredits,
-        model: response.model || "Unknown model",
-        provider: response.provider || "Unknown provider",
-      });
     } catch (error) {
-      console.error('[Generate] Error generating code:', error);
+      console.error('[Generate] Error during generation:', error);
       return NextResponse.json(
         { error: "Failed to generate code" },
         { status: 500 }
@@ -180,7 +280,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('[Generate] Unexpected error:', error);
     return NextResponse.json(
-      { error: "An unexpected error occurred" },
+      { error: "Failed to generate code" },
       { status: 500 }
     );
   }
