@@ -5,9 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
-import { AuthService } from "@/lib/auth";
+import { AuthService } from "@/lib/auth/service";
 import SubscriptionPlans from "@/components/SubscriptionPlans";
 import CreditPurchase from "@/components/CreditPurchase";
+import { ApiClient } from "@/lib/api-client";
 
 export default function DashboardPage() {
   const { theme } = useTheme();
@@ -15,7 +16,7 @@ export default function DashboardPage() {
   const searchParams = useSearchParams();
   
   // Use our new auth context instead of zustand store
-  const { user, tokens, setTokens, syncTokensWithDB, isLoading } = useAuth();
+  const { user, tokens, setTokens, syncTokensWithDB, isLoading, setUser } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export default function DashboardPage() {
   const latestTokens = useRef<number>(tokens);
   const latestSubscriptionTier = useRef<string>(subscriptionTier);
   const latestSubscriptionStatus = useRef<string | null>(subscriptionStatus);
+  const hasShownSubscriptionMessage = useRef<boolean>(false);
 
   // Update refs when values change
   useEffect(() => {
@@ -77,33 +79,34 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         
-        const supabase = AuthService.createClient();
-        
-        // Get full profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        // Use ApiClient instead of direct Supabase access
+        const { data: profileData, error: profileError } = await ApiClient.getUserProfile();
         
         if (profileError) {
           console.error("Error fetching profile:", profileError);
-          setError("Could not load profile data");
-        } else if (profileData) {
-          const profile = profileData as unknown as {
-            credits: number;
-            subscription_tier?: string;
-            subscription_status?: string;
-          };
-          
-          setCredits(profile.credits);
-          setTokens(profile.credits);
-          setSubscriptionTier(profile.subscription_tier || "free");
-          setSubscriptionStatus(profile.subscription_status || null);
+          setError("Failed to load your profile data. Please try again later.");
+          return;
         }
-      } catch (err) {
-        console.error("Error loading profile:", err);
-        setError("An error occurred while loading your profile");
+        
+        if (profileData) {
+          // Update state with profile data
+          updateStateFromProfile(profileData);
+          
+          // Check if credits need to be refreshed
+          if (tokens !== profileData.credits) {
+            setTokens(profileData.credits || 0);
+          }
+        }
+        
+        // Check if we need to show subscription status message
+        if (profileData?.subscription_status === 'active' && !hasShownSubscriptionMessage.current) {
+          setSuccessMessage(`Your ${profileData.subscription_tier} subscription is active!`);
+          hasShownSubscriptionMessage.current = true;
+          setTimeout(() => setSuccessMessage(null), 5000);
+        }
+      } catch (error) {
+        console.error("Error in loadProfileData:", error);
+        setError("An unexpected error occurred. Please try again later.");
       } finally {
         setLoading(false);
       }
@@ -454,148 +457,84 @@ export default function DashboardPage() {
   };
 
   const handleLogout = async () => {
-    // Clear the dashboard_visited flag
-    sessionStorage.removeItem('dashboard_visited');
-    
-    // Use the new AuthService for logout
-    await AuthService.signOut();
-    router.push('/');
+    try {
+      setLoading(true);
+      
+      // Use ApiClient instead of direct Supabase access
+      const { error } = await ApiClient.signOut();
+      
+      if (error) {
+        console.error("Error signing out:", error);
+        setError("Failed to sign out. Please try again.");
+        return;
+      }
+      
+      // Redirect to home page
+      router.push("/");
+    } catch (error) {
+      console.error("Error in handleLogout:", error);
+      setError("An unexpected error occurred. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Helper function to get user data
   const getUserData = async () => {
     try {
-      console.log("Getting user data");
-      const supabase = AuthService.createClient();
-      const { user, error } = await AuthService.getCurrentUser(supabase);
+      setLoading(true);
       
-      if (error) {
-        console.error("User error:", error);
-        setError(error instanceof Error ? error.message : "Authentication error");
-        setLoading(false);
-        return null;
+      // Use ApiClient instead of direct Supabase access
+      const { data: userData, error: userError } = await ApiClient.getCurrentUser();
+      
+      if (userError || !userData) {
+        console.error("Error fetching user data:", userError);
+        setError("Failed to load your user data. Please try again later.");
+        return;
       }
       
-      if (!user) {
-        console.log("No user found, redirecting to home");
-        setLoading(false);
-        router.push("/");
-        return null;
-      }
+      setUser(userData);
       
-      console.log("User found:", user.id);
-      return user;
-    } catch (err) {
-      console.error("Error in getUserData:", err);
-      setError("Failed to get user information");
+      // Get profile data
+      await loadProfileData();
+    } catch (error) {
+      console.error("Error in getUserData:", error);
+      setError("An unexpected error occurred. Please try again later.");
+    } finally {
       setLoading(false);
-      return null;
     }
   };
   
   // Fix the getUserProfile reference by creating a new local function
   const refreshUserProfile = async () => {
-    console.log(`🔄 Starting user profile refresh...`);
-    
     try {
       setLoading(true);
       
-      // Get the user's profile data using the existing getUserData function
-      const userData = await getUserData();
-      if (!userData) {
-        console.log(`⚠️ No user data found during refresh`);
-        setLoading(false);
-        return;
-      }
-      
-      console.log(`✅ User data found, fetching profile for: ${userData.id}`);
-      const supabase = AuthService.createClient();
-      
-      // Fetch latest user profile from database
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userData.id)
-        .single();
+      // Use ApiClient instead of direct Supabase access
+      const { data: profileData, error: profileError } = await ApiClient.getUserProfile();
       
       if (profileError) {
-        console.error('❌ Error fetching user profile:', profileError);
-        setError('Failed to load profile data');
+        console.error("Error refreshing profile:", profileError);
+        setError("Failed to refresh your profile data. Please try again later.");
         return;
       }
       
-      if (!profileData) {
-        console.log(`⚠️ No profile data found during refresh`);
-        return;
-      }
-      
-      console.log(`📊 Raw profile data from database:`, profileData);
-      
-      // Check if credits data is present
-      if (profileData.credits !== undefined) {
-        console.log(`💰 Credits found in profile: ${profileData.credits}`);
-      } else {
-        console.warn(`⚠️ No credits data in profile`);
-      }
-      
-      // Check subscription tier
-      if (profileData.subscription_tier) {
-        console.log(`🔰 Subscription tier found: ${profileData.subscription_tier}`);
-      } else {
-        console.warn(`⚠️ No subscription tier in profile`);
-      }
-      
-      // Update the state with the profile data
-      console.log(`🔄 Updating state from profile...`);
-      console.log(`📊 Before update - Credits: ${credits}, Tier: ${subscriptionTier}, Status: ${subscriptionStatus}`);
-      
-      updateStateFromProfile({
-        credits: profileData.credits,
-        subscription_tier: profileData.subscription_tier || undefined,
-        subscription_status: profileData.subscription_status || undefined,
-        email: profileData.email || undefined
-      });
-      
-      console.log(`📊 After update - Credits: ${credits}, Tier: ${subscriptionTier}, Status: ${subscriptionStatus}`);
-      
-      // Check for checkout success
-      const checkoutStatus = searchParams?.get('checkout');
-      if (checkoutStatus === 'success') {
-        console.log(`🎉 Checkout success detected in URL`);
-        setSuccessMessage('Payment successful! Your account has been updated.');
+      if (profileData) {
+        // Update state with profile data
+        updateStateFromProfile(profileData);
         
-        // Add a direct SQL query to check the user's subscription tier
-        try {
-          console.log(`🔍 Checking user's subscription tier after checkout success...`);
-          const userData = await getUserData();
-          if (userData) {
-            const supabase = AuthService.createClient();
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('subscription_tier, subscription_status, credits')
-              .eq('id', userData.id)
-              .single();
-            
-            if (profileError) {
-              console.error(`❌ Error fetching profile:`, profileError);
-            } else {
-              console.log(`📊 Current profile data after checkout:`, profileData);
-            }
-          }
-        } catch (sqlError) {
-          console.error(`❌ Exception in profile query:`, sqlError);
+        // Check if credits need to be refreshed
+        if (tokens !== profileData.credits) {
+          setTokens(profileData.credits || 0);
         }
         
-        // Remove the checkout parameter from the URL
-        const newParams = new URLSearchParams(searchParams.toString());
-        newParams.delete('checkout');
-        router.replace(`/dashboard?${newParams.toString()}`);
+        setSuccessMessage("Profile refreshed successfully!");
+        setTimeout(() => setSuccessMessage(null), 3000);
       }
-      
-      setLoading(false);
-    } catch (err) {
-      console.error('❌ Exception in refreshUserProfile:', err);
-      setError('An error occurred while refreshing your profile');
+    } catch (error) {
+      console.error("Error in refreshUserProfile:", error);
+      setError("An unexpected error occurred. Please try again later.");
+    } finally {
       setLoading(false);
     }
   };

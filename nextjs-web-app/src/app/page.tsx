@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { HeroGeometric } from "@/components/ui/shape-landing-hero";
 import { RainbowButton } from "@/components/ui/rainbow-button";
@@ -15,21 +15,38 @@ import { AuthService } from "@/lib/auth";
 import { useAuth } from "@/context/AuthContext";
 import { useGenerations } from "@/context/GenerationsContext";
 import { User } from "@supabase/supabase-js";
+import { ApiClient } from "@/lib/api-client";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function Home() {
-  const [prompt, setPrompt] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const router = useRouter();
+  const { theme } = useTheme();
   const { numGenerations, incrementGenerations, decrementGenerations } = useGenerations();
   const [styles, setStyles] = useState<string[]>(DEFAULT_STYLES.slice(0, numGenerations));
   const [customStyles, setCustomStyles] = useState<string[]>(
     Array(numGenerations).fill("")
   );
   const [isStyleSettingsExpanded, setIsStyleSettingsExpanded] = useState(false);
-  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
-  
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [tokens, setTokens] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [prompt, setPrompt] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showSignupModal, setShowSignupModal] = useState(false);
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertInfo, setAlertInfo] = useState<{
+    title: string;
+    message: string;
+    type: "auth" | "credits";
+  }>({
+    title: "",
+    message: "",
+    type: "auth",
+  });
+
   // Token store state
-  const { setTokens } = useAuth();
+  const { setTokens: setAuthTokens } = useAuth();
 
   // Animated gradient positions
   const [gradientPosition, setGradientPosition] = useState(0);
@@ -38,9 +55,8 @@ export default function Home() {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        // Use AuthService instead of direct Supabase client
-        const supabase = AuthService.createClient();
-        const { user, error } = await AuthService.getCurrentUser(supabase);
+        // Use ApiClient instead of direct Supabase access
+        const { data: userData, error } = await ApiClient.getCurrentUser();
         
         if (error) {
           console.error("Error checking user:", error);
@@ -48,17 +64,15 @@ export default function Home() {
         }
         
         // Update user session if user is logged in
-        if (user) {
-          // Get additional user details if needed
-          setUser(user);
+        if (userData) {
+          setUser(userData);
+          setIsAuthenticated(true);
+          
+          // Sync tokens with database
           await syncTokensWithDB();
-        } else {
-          setUser(null);
         }
       } catch (error) {
-        console.error("Error checking user:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("Error in checkUser:", error);
       }
     };
     
@@ -114,19 +128,6 @@ export default function Home() {
   // Use the centralized design styles configuration
   const predefinedStyles = DESIGN_STYLES;
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [showSignupModal, setShowSignupModal] = useState(false);
-  const [showAlertModal, setShowAlertModal] = useState(false);
-  const [alertInfo, setAlertInfo] = useState<{
-    title: string;
-    message: string;
-    type: "auth" | "credits";
-  }>({
-    title: "",
-    message: "",
-    type: "auth",
-  });
-
   // Handle auth refresh from redirects
   useEffect(() => {
     // Check if we have the auth_refresh query parameter
@@ -153,8 +154,7 @@ export default function Home() {
         
         // Force auth state check
         const checkUser = async () => {
-          const supabase = AuthService.createClient();
-          const { user } = await AuthService.getCurrentUser(supabase);
+          const { data: user } = await ApiClient.getCurrentUser();
           setUser(user);
           
           if (user) {
@@ -187,27 +187,21 @@ export default function Home() {
 
   // Function to sync tokens with the database
   const syncTokensWithDB = async () => {
-    if (!user || !user.id) return;
+    if (!user) return;
     
     try {
-      const supabase = AuthService.createClient();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('credits')
-        .eq('id', user.id)
-        .single();
+      const { data, error } = await ApiClient.getUserCredits();
       
       if (error) {
-        console.error('Error fetching user tokens:', error);
+        console.error("Error syncing tokens with DB:", error);
         return;
       }
       
-      if (data && data.credits !== undefined) {
-        // Update the token store with the user's credits from DB
-        setTokens(data.credits);
+      if (data !== null) {
+        setAuthTokens(data);
       }
     } catch (error) {
-      console.error('Error syncing tokens with DB:', error);
+      console.error("Error syncing tokens with DB:", error);
     }
   };
 

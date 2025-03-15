@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PaymentService } from '@/lib/payment';
-import { AuthService } from '@/lib/auth';
+import { SupabaseAdmin } from '@/lib/supabase-admin';
 
 // Simplified request type
 interface CheckoutRequestBody {
@@ -38,18 +38,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Create Supabase client using cookie store from request
+    // 3. Create Supabase client using the admin service
     let supabase;
     try {
-      // Get the cookie store from the request
-      const cookieStore = {
-        getAll() {
-          return req.cookies.getAll();
-        }
-      };
-
-      // Create a server client with cookies AND token
-      supabase = await AuthService.createServerClient(cookieStore);
+      // Create a server client with admin privileges
+      supabase = await SupabaseAdmin.getInstance();
       
       // Set the session with the token
       await supabase.auth.setSession({

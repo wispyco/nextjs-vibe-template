@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AuthService } from '@/lib/auth';
+import { SupabaseAdmin } from '@/lib/supabase-admin';
 import { PaymentService, PlanTierSchema } from '@/lib/payment';
 
 export async function POST(req: NextRequest) {
@@ -26,15 +26,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Access token is required' }, { status: 401 });
     }
     
-    // Create a server client using cookie store from request
-    const cookieStore = {
-      getAll() {
-        return req.cookies.getAll();
-      }
-    };
-
-    // Create a server client first
-    const supabase = await AuthService.createServerClient(cookieStore);
+    // Create a server client using the admin service
+    const supabase = await SupabaseAdmin.getInstance();
     
     // Set the session with the provided token
     try {

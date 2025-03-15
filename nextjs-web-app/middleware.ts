@@ -1,13 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import type { Database } from '@/types/supabase'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
 
-  const supabase = createServerClient<Database>(
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -38,10 +37,22 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Block direct access to Supabase endpoints from the client
+  // This prevents security issues where users could bypass the API layer
+  if (request.nextUrl.pathname.startsWith('/.supabase')) {
+    return NextResponse.json(
+      { error: 'Direct access to Supabase endpoints is not allowed' },
+      { status: 403 }
+    );
+  }
+
+  // Redirect unauthenticated users to login page
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
+    !request.nextUrl.pathname.startsWith('/auth') &&
+    !request.nextUrl.pathname.startsWith('/api/auth') &&
+    request.nextUrl.pathname !== '/'
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()

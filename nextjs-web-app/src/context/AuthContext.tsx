@@ -10,6 +10,8 @@ import React, {
   useRef
 } from "react";
 import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
+import { ApiClient } from "@/lib/api-client";
+// We'll still need AuthService for auth event listeners
 import { AuthService } from "@/lib/auth/service";
 
 // Define the shape of our AuthContext
@@ -18,6 +20,7 @@ type AuthContextType = {
   tokens: number;
   isLoading: boolean;
   isAuthenticated: boolean;
+  setUser: (user: User | null) => void;
   setTokens: (tokens: number) => void;
   incrementTokens: (amount: number) => void;
   decrementTokens: (amount: number) => void;
@@ -31,6 +34,7 @@ export const AuthContext = createContext<AuthContextType>({
   tokens: 0,
   isLoading: true,
   isAuthenticated: false,
+  setUser: () => {},
   setTokens: () => {},
   incrementTokens: () => {},
   decrementTokens: () => {},
@@ -50,50 +54,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Create refs to track the latest values without triggering re-renders
   const userRef = useRef<User | null>(null);
   const tokensRef = useRef<number>(0);
-  const pendingTokenUpdateRef = useRef<NodeJS.Timeout | null>(null);
-
+  
+  // Create a ref for the token update timeout
+  const tokenUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Update refs when state changes
   useEffect(() => {
     userRef.current = user;
-  }, [user]);
-
-  useEffect(() => {
     tokensRef.current = tokens;
-  }, [tokens]);
-
-  // Function to set tokens
+  }, [user, tokens]);
+  
+  // Wrapper for setTokens that updates both state and ref
   const setTokens = useCallback((newTokens: number) => {
-    if (tokens !== newTokens) {
-      setTokensState(newTokens);
-      localStorage.setItem('user-tokens', newTokens.toString());
+    setTokensState(newTokens);
+    tokensRef.current = newTokens;
+    
+    // Update tokens in the database if user is authenticated
+    if (userRef.current) {
+      // Use a debounce to avoid too many API calls
+      if (tokenUpdateTimeoutRef.current) {
+        clearTimeout(tokenUpdateTimeoutRef.current);
+      }
+      
+      tokenUpdateTimeoutRef.current = setTimeout(async () => {
+        try {
+          await ApiClient.updateUserCredits(newTokens);
+        } catch (error) {
+          console.error("Error updating tokens in database:", error);
+        }
+        tokenUpdateTimeoutRef.current = null;
+      }, 1000);
     }
-  }, [tokens]);
-
+  }, []);
+  
   // Function to increment tokens
   const incrementTokens = useCallback((amount: number) => {
-    const newTokens = tokens + amount;
+    const newTokens = tokensRef.current + amount;
     setTokens(newTokens);
-  }, [tokens, setTokens]);
-
+  }, [setTokens]);
+  
   // Function to decrement tokens
   const decrementTokens = useCallback((amount: number) => {
-    const newTokens = Math.max(0, tokens - amount);
+    const newTokens = Math.max(0, tokensRef.current - amount);
     setTokens(newTokens);
-  }, [tokens, setTokens]);
+  }, [setTokens]);
 
   // Function to sync tokens with database
   const syncTokensWithDB = useCallback(async () => {
     if (!userRef.current) return;
 
     try {
-      const supabase = AuthService.createClient();
-      
-      // Get the user's tokens from the database
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("credits")
-        .eq("id", userRef.current.id)
-        .single();
+      // Use ApiClient instead of direct Supabase access
+      const { data, error } = await ApiClient.getUserCredits();
       
       if (error) {
         console.error("Error syncing tokens with DB:", error);
@@ -101,38 +113,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Update local state with the database value
-      if (data && data.credits !== undefined) {
-        setTokens(data.credits);
+      if (data !== null) {
+        setTokens(data);
       }
     } catch (error) {
       console.error("Error syncing tokens with DB:", error);
     }
   }, [setTokens]);
 
-  // Function to update tokens in database
-  const updateTokensInDB = useCallback(async () => {
-    if (!userRef.current) return;
-    
-    try {
-      const supabase = AuthService.createClient();
-      
-      const { error } = await supabase
-        .from("profiles")
-        .update({ credits: tokensRef.current })
-        .eq("id", userRef.current.id);
-      
-      if (error) {
-        console.error("Error updating tokens in DB:", error);
-      }
-    } catch (error) {
-      console.error("Error updating tokens in DB:", error);
-    }
-  }, []);
-
-  // Function to sign out
+  // Sign out function
   const signOut = useCallback(async () => {
     try {
-      await AuthService.signOut();
+      // Use ApiClient instead of direct Supabase access
+      const { error } = await ApiClient.signOut();
+      
+      if (error) {
+        console.error("Error signing out:", error);
+        return;
+      }
+      
+      // Clear local state
       setUser(null);
       setTokens(0);
     } catch (error) {
@@ -140,145 +140,102 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [setTokens]);
 
-  // Effect to initialize auth state and listen for changes
+  // Effect to initialize auth state and set up auth listener
   useEffect(() => {
-    let isMounted = true;
+    setIsLoading(true);
+    
+    // We still need to use AuthService for the auth state listener
     const supabase = AuthService.createClient();
     
-    // Load tokens from localStorage on initialization
-    const storedTokens = localStorage.getItem('user-tokens');
-    if (storedTokens) {
-      setTokensState(parseInt(storedTokens, 10) || 0);
-    }
-
-    // Set a timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      if (isMounted && isLoading) {
-        console.warn("Auth loading timed out after 5 seconds");
-        setIsLoading(false);
-        setUser(null);
-      }
-    }, 5000);
-
-    // Check current session
-    const checkUser = async () => {
+    // Function to get initial user and tokens
+    const initializeAuth = async () => {
       try {
-        const { user, error } = await AuthService.getCurrentUser(supabase);
-
-        if (error) {
-          // Only log actual errors, not AuthSessionMissingError which is expected
-          if (error instanceof Error && error.name !== 'AuthSessionMissingError') {
-            console.error("AuthContext: Error fetching user:", error);
-          }
-          
-          // For any error, clear the user state
-          if (isMounted) {
-            setUser(null);
-            setIsLoading(false);
-          }
+        // Get current user using ApiClient
+        const { data: userData, error: userError } = await ApiClient.getCurrentUser();
+        
+        if (userError || !userData) {
+          console.log("No authenticated user found");
+          setIsLoading(false);
           return;
         }
         
-        if (user && isMounted) {
-          setUser(user);
-          await syncTokensWithDB();
-        } else if (isMounted) {
-          // No user found (not logged in)
-          setUser(null);
+        setUser(userData);
+        userRef.current = userData;
+        
+        // Get user credits using ApiClient
+        const { data: creditsData, error: creditsError } = await ApiClient.getUserCredits();
+        
+        if (creditsError) {
+          console.error("Error getting user credits:", creditsError);
+        } else if (creditsData !== null) {
+          setTokens(creditsData);
         }
       } catch (error) {
-        // This shouldn't normally happen since AuthService.getCurrentUser 
-        // already handles errors, but just in case
-        console.error("AuthContext: Unexpected error in checkUser:", error);
-        
-        if (isMounted) {
-          setUser(null);
-        }
+        console.error("Error initializing auth:", error);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
-
-    checkUser();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    
+    // Initialize auth state
+    initializeAuth();
+    
+    // Set up auth state change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
+        console.log("Auth state changed:", event);
         
-        if (event === 'SIGNED_OUT' || !session) {
-          if (isMounted) {
-            setUser(null);
-            setTokens(0);
-            setIsLoading(false);
-          }
-          return;
-        }
-
-        try {
-          if (isMounted) {
-            setUser(session.user);
-            await syncTokensWithDB();
-          }
-        } catch (error) {
-          console.error("AuthContext: Error in auth state change:", error);
-          await signOut();
-        } finally {
-          if (isMounted) {
-            setIsLoading(false);
+        if (event === "SIGNED_IN" && session?.user) {
+          // Use ApiClient to get user data
+          const { data: userData } = await ApiClient.getCurrentUser();
+          setUser(userData);
+          userRef.current = userData;
+          
+          // Sync tokens with DB
+          syncTokensWithDB();
+        } else if (event === "SIGNED_OUT") {
+          setUser(null);
+          userRef.current = null;
+          setTokens(0);
+        } else if (event === "TOKEN_REFRESHED" && session?.user) {
+          // Token was refreshed, update user if needed
+          if (!userRef.current || userRef.current.id !== session.user.id) {
+            const { data: userData } = await ApiClient.getCurrentUser();
+            setUser(userData);
+            userRef.current = userData;
           }
         }
       }
     );
-
-    // Clean up
+    
+    // Clean up auth listener on unmount
     return () => {
-      isMounted = false;
-      clearTimeout(loadingTimeout);
-      subscription.unsubscribe();
-    };
-  }, [signOut, syncTokensWithDB, isLoading]);
-
-  // Separate effect for token updates with debouncing
-  useEffect(() => {
-    // Skip the initial render
-    if (tokensRef.current === 0) return;
-    
-    // Skip if no user
-    if (!userRef.current) return;
-    
-    // Clear any pending update
-    if (pendingTokenUpdateRef.current) {
-      clearTimeout(pendingTokenUpdateRef.current);
-    }
-    
-    // Schedule new update with debounce
-    pendingTokenUpdateRef.current = setTimeout(() => {
-      updateTokensInDB();
-      pendingTokenUpdateRef.current = null;
-    }, 2000); // Longer debounce time to reduce API calls
-    
-    // Cleanup
-    return () => {
-      if (pendingTokenUpdateRef.current) {
-        clearTimeout(pendingTokenUpdateRef.current);
+      authListener.subscription.unsubscribe();
+      
+      // Clear any pending token updates
+      if (tokenUpdateTimeoutRef.current) {
+        clearTimeout(tokenUpdateTimeoutRef.current);
       }
     };
-  }, [tokens, updateTokensInDB]);
+  }, [setTokens, syncTokensWithDB]);
 
-  // The value that will be given to consumers of the context
-  const value = {
-    user,
-    tokens,
-    isLoading,
-    isAuthenticated: !!user,
-    setTokens,
-    incrementTokens,
-    decrementTokens,
-    syncTokensWithDB,
-    signOut
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // Provide the auth context to children components
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        tokens,
+        isLoading,
+        isAuthenticated: !!user,
+        setUser,
+        setTokens,
+        incrementTokens,
+        decrementTokens,
+        syncTokensWithDB,
+        signOut,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }

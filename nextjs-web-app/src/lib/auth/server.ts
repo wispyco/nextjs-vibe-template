@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
+import { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
 
 // Define cookie store interface for compatibility
 interface CookieStore {
@@ -11,11 +12,29 @@ interface CookieStore {
  * This function should be used in API routes, getServerSideProps, or in middleware
  * For Server Components, use createServerComponentClient instead
  */
-export async function createClient(cookieStore?: CookieStore) {
+export async function createClient(cookieStore?: CookieStore | ReadonlyRequestCookies) {
   // Use provided cookie store or create empty fallback
-  const cookies = cookieStore || {
-    getAll: () => [],
-  };
+  let cookies: CookieStore;
+  
+  if (!cookieStore) {
+    cookies = {
+      getAll: () => [],
+    };
+  } else if ('getAll' in cookieStore && typeof cookieStore.getAll === 'function') {
+    // If it's already a compatible cookie store
+    cookies = cookieStore as CookieStore;
+  } else {
+    // If it's a ReadonlyRequestCookies
+    cookies = {
+      getAll: () => {
+        const requestCookies = cookieStore as ReadonlyRequestCookies;
+        return Array.from(requestCookies.entries()).map(([name, value]) => ({
+          name,
+          value: value.value,
+        }));
+      },
+    };
+  }
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,7 +47,7 @@ export async function createClient(cookieStore?: CookieStore) {
         setAll(cookiesToSet) {
           try {
             // If we have a setCookie method available
-            if ('set' in cookies && typeof cookies.set === 'function') {
+            if ('set' in cookies && typeof (cookies as any).set === 'function') {
               cookiesToSet.forEach(({ name, value, options }) => {
                 (cookies as any).set(name, value, options);
               });
@@ -64,7 +83,10 @@ export async function createServerComponentClient() {
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll();
+            return Array.from(cookieStore.entries()).map(([name, value]) => ({
+              name,
+              value: value.value,
+            }));
           },
           setAll(cookiesToSet) {
             try {
