@@ -397,10 +397,10 @@ export class PaymentService {
       // Calculate credits to add based on tier top-up rate
       const creditsAmount = parseInt(session.metadata.credits);
       const creditsToAdd = creditsAmount;
-      
+
       // Calculate amount paid
       const amountPaid = session.amount_total ? session.amount_total / 100 : 0;
-      
+
       console.log(`💰 Adding ${creditsToAdd} credits to user ${userId}`);
 
       // Add credits to the user's account using the calculated amount
@@ -436,11 +436,11 @@ export class PaymentService {
     // If this is a subscription checkout
     else if (session.mode === "subscription" && session.metadata?.userId && session.metadata?.tier) {
       console.log(`🔄 Processing subscription checkout: ${session.id}`);
-      
+
       const userId = session.metadata.userId;
       const tier = session.metadata.tier as SubscriptionTier;
       const supabase = await AuthService.createAdminClient();
-      
+
       try {
         // Get the current profile to check if this is an upgrade
         const { data: profileData, error: profileError } = await supabase
@@ -448,35 +448,35 @@ export class PaymentService {
           .select("subscription_tier, last_credit_refresh")
           .eq("id", userId)
           .single();
-          
+
         if (profileError) {
           console.error(`❌ Error fetching profile: ${profileError.message}`);
         } else {
           const prevTier = profileData?.subscription_tier || 'free';
-          
+
           // Check if this is an upgrade that requires immediate credit refresh
-          const isUpgrade = tier !== prevTier && 
+          const isUpgrade = tier !== prevTier &&
             (
               (tier === 'ultra' && ['pro', 'free'].includes(prevTier)) ||
               (tier === 'pro' && prevTier === 'free')
             );
-          
+
           // Check if user already received credits today
           const lastCreditRefresh = profileData?.last_credit_refresh ? new Date(profileData.last_credit_refresh) : null;
           const today = new Date();
-          const hasReceivedCreditsToday = lastCreditRefresh && 
+          const hasReceivedCreditsToday = lastCreditRefresh &&
             lastCreditRefresh.getDate() === today.getDate() &&
             lastCreditRefresh.getMonth() === today.getMonth() &&
             lastCreditRefresh.getFullYear() === today.getFullYear();
-          
+
           // If this is an upgrade and user hasn't received credits today
           if (isUpgrade && !hasReceivedCreditsToday) {
             console.log(`🔄 Subscription upgrade detected: ${prevTier} -> ${tier}`);
             console.log(`💰 Granting immediate daily credits for tier: ${tier}`);
-            
+
             // Determine credit amount based on tier
             const creditAmount = tier === 'ultra' ? 1000 : tier === 'pro' ? 100 : 30;
-            
+
             try {
               // Call the add_user_credits function to add credits and record the transaction
               const { data: creditsData, error: creditsError } = await addUserCredits(
@@ -486,16 +486,16 @@ export class PaymentService {
                 "plan_upgrade",
                 `Immediate credits grant after upgrading to ${tier} plan`
               );
-              
+
               if (creditsError) {
                 console.error(`❌ Error granting immediate credits: ${creditsError.message}`);
               } else {
                 console.log(`✅ Successfully granted ${creditAmount} credits after plan upgrade. New total: ${creditsData}`);
-                
+
                 // Update last_credit_refresh timestamp
                 await supabase
                   .from("profiles")
-                  .update({ 
+                  .update({
                     last_credit_refresh: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                   })
@@ -508,11 +508,11 @@ export class PaymentService {
             console.log(`ℹ️ User already received credits today, skipping immediate credit grant`);
           }
         }
-        
+
         // Update the subscription with user metadata if there is a subscription
         if (session.subscription) {
           const stripe = this.getStripe();
-          
+
           try {
             await stripe.subscriptions.update(
               session.subscription as string,
@@ -658,43 +658,43 @@ export class PaymentService {
         }
 
         // Check if this is an upgrade (higher tier) that requires immediate credit refresh
-        const isUpgrade = tier !== currentProfile.subscription_tier && 
+        const isUpgrade = tier !== currentProfile.subscription_tier &&
           (
             (tier === 'ultra' && ['pro', 'free'].includes(currentProfile.subscription_tier)) ||
             (tier === 'pro' && currentProfile.subscription_tier === 'free')
           );
-        
+
         // Log upgrade details
         console.log(`🔍 Checking for upgrade: Current tier=${currentProfile.subscription_tier}, New tier=${tier}, isUpgrade=${isUpgrade}`);
-        
+
         // Check if user already received credits today
         const lastCreditRefresh = currentProfile.last_credit_refresh ? new Date(currentProfile.last_credit_refresh) : null;
         const today = new Date();
-        const hasReceivedCreditsToday = lastCreditRefresh && 
+        const hasReceivedCreditsToday = lastCreditRefresh &&
           lastCreditRefresh.getDate() === today.getDate() &&
           lastCreditRefresh.getMonth() === today.getMonth() &&
           lastCreditRefresh.getFullYear() === today.getFullYear();
-        
+
         console.log(`🔍 Credit refresh check: lastRefresh=${lastCreditRefresh?.toISOString()}, hasReceivedToday=${hasReceivedCreditsToday}`);
-        
+
         // If this is an upgrade and user hasn't received credits today, grant them immediate credits
         if (isUpgrade) {
           console.log(`🔄 Subscription upgrade detected: ${currentProfile.subscription_tier} -> ${tier}`);
-          
+
           // Also check if credits match the expected amount for the new tier
           const expectedCredits = tier === 'ultra' ? 1000 : tier === 'pro' ? 100 : 30;
           const currentCredits = currentProfile.credits || 0;
           const needsCreditAdjustment = currentCredits < expectedCredits;
-          
+
           console.log(`💰 Credit check: current=${currentCredits}, expected=${expectedCredits}, needsAdjustment=${needsCreditAdjustment}`);
-          
+
           // Grant credits if either they haven't received today OR if their credits don't match their new tier
           if (!hasReceivedCreditsToday || needsCreditAdjustment) {
             console.log(`💰 Granting immediate daily credits for tier: ${tier}`);
-            
+
             // Determine credit amount based on tier
             const creditAmount = tier === 'ultra' ? 1000 : tier === 'pro' ? 100 : 30;
-            
+
             try {
               // Call the add_user_credits function to add credits and record the transaction
               const { data: creditsData, error: creditsError } = await addUserCredits(
@@ -704,21 +704,21 @@ export class PaymentService {
                 "plan_upgrade",
                 `Immediate credits grant after upgrading to ${tier} plan`
               );
-              
+
               if (creditsError) {
                 console.error("❌ Error granting immediate credits:", creditsError);
               } else {
                 console.log(`✅ Successfully granted ${creditAmount} credits after plan upgrade. New total: ${creditsData}`);
-                
+
                 // Update last_credit_refresh timestamp
                 const { error: updateError } = await supabase
                   .from("profiles")
-                  .update({ 
+                  .update({
                     last_credit_refresh: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                   })
                   .eq("id", userId);
-                  
+
                 if (updateError) {
                   console.error("❌ Error updating credit refresh timestamp:", updateError);
                 } else {
@@ -836,35 +836,35 @@ export class PaymentService {
    */
   private static async handleInvoicePaymentFailed(invoice: StripeInvoice) {
     console.log(`Invoice payment failed: ${invoice.id}`);
-    
+
     if (!invoice.customer || !invoice.subscription) {
       console.error(`❌ Missing customer or subscription ID in invoice`);
       return;
     }
-    
+
     // Get the customer and change their subscription status
-    const customerId = typeof invoice.customer === 'string' 
-      ? invoice.customer 
+    const customerId = typeof invoice.customer === 'string'
+      ? invoice.customer
       : invoice.customer.id;
-      
+
     const subscriptionId = typeof invoice.subscription === 'string'
       ? invoice.subscription
       : invoice.subscription.id;
-    
+
     try {
       // Use admin client for database operations
       const supabase = await AuthService.createAdminClient();
-      
+
       // Update the profile with past_due status
       const { error } = await supabase
         .from('profiles')
-        .update({ 
+        .update({
           subscription_status: 'past_due',
           updated_at: new Date().toISOString()
         })
         .eq('stripe_customer_id', customerId)
         .eq('stripe_subscription_id', subscriptionId);
-        
+
       if (error) {
         console.error(`❌ Failed to update subscription status: ${error.message}`);
       } else {
@@ -881,18 +881,18 @@ export class PaymentService {
   private static getSiteUrl(): string {
     // For production, always use the configured site URL
     const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL 
+    const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL
       ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
       : null;
     const defaultUrl = "http://localhost:3000";
-    
+
     // Log the URLs for debugging
     console.log(`🔍 Site URL configuration - Configured: ${configuredUrl || 'not set'}, Vercel: ${vercelUrl || 'not set'}`);
-    
+
     // Always prioritize the configured URL for production
     const siteUrl = configuredUrl || vercelUrl || defaultUrl;
     console.log(`✅ Using site URL: ${siteUrl}`);
-    
+
     return siteUrl;
   }
 
@@ -902,7 +902,9 @@ export class PaymentService {
   static async cancelSubscription(
     userId: string
   ): Promise<{ success: boolean; message: string }> {
-    const supabase = await AuthService.createServerClient();
+    // Use admin client to bypass authentication issues
+    const supabase = await AuthService.createAdminClient();
+    console.log(`🔍 Using admin client for subscription cancellation for user: ${userId}`);
 
     try {
       // Get the user's profile to find their Stripe customer ID
@@ -911,6 +913,8 @@ export class PaymentService {
         .select("stripe_customer_id, subscription_tier")
         .eq("id", userId)
         .single();
+
+      console.log(`🔍 Profile lookup result:`, { profile, error: profileError?.message });
 
       if (profileError || !profile) {
         throw new Error("User profile not found");
@@ -938,25 +942,39 @@ export class PaymentService {
 
       // Update the profile immediately
       try {
-        await (supabase as any)
+        const { error: updateError } = await supabase
           .from("profiles")
           .update({
             subscription_tier: "free",
             subscription_status: "canceled",
           })
           .eq("id", userId);
+
+        if (updateError) {
+          console.error("Error updating profile after cancellation:", updateError);
+        } else {
+          console.log(`✅ Successfully updated profile for user ${userId} to free tier`);
+        }
       } catch (error) {
         console.error("Error updating profile after cancellation:", error);
       }
 
       // Add to subscription history
       try {
-        await (supabase as any).from("subscription_history").insert({
-          user_id: userId,
-          subscription_tier: "free",
-          status: "canceled",
-          stripe_subscription_id: subscriptions.data[0].id,
-        });
+        const { error: historyError } = await supabase
+          .from("subscription_history")
+          .insert({
+            user_id: userId,
+            subscription_tier: "free",
+            status: "canceled",
+            stripe_subscription_id: subscriptions.data[0].id,
+          });
+
+        if (historyError) {
+          console.error("Error recording subscription history:", historyError);
+        } else {
+          console.log(`✅ Successfully recorded subscription cancellation in history`);
+        }
       } catch (error) {
         console.error(
           "Error recording subscription cancellation history:",
@@ -971,11 +989,18 @@ export class PaymentService {
       };
     } catch (error) {
       console.error("Error cancelling subscription:", error);
+
+      // Provide more detailed error message for debugging
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`❌ Detailed subscription cancellation error: ${errorMessage}`);
+
+      if (error instanceof Error && error.stack) {
+        console.error(`❌ Error stack: ${error.stack}`);
+      }
+
       return {
         success: false,
-        message: `Failed to cancel subscription: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
+        message: `Failed to cancel subscription: ${errorMessage}`,
       };
     }
   }

@@ -14,9 +14,9 @@ export default function DashboardPage() {
   const { theme } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const { user, tokens, setTokens, syncTokensWithDB, isLoading } = useAuth();
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export default function DashboardPage() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isProcessingCredits, setIsProcessingCredits] = useState(false);
-  
+
   // Add refs to track latest values without causing re-renders
   const latestTokens = useRef<number>(tokens);
   const latestSubscriptionTier = useRef<string>(subscriptionTier);
@@ -64,31 +64,31 @@ export default function DashboardPage() {
       isLoadingProfile.current = true;
       setLoading(true);
       console.log("🔄 Loading profile data");
-      
+
       const { data: profileData, error: profileError } = await ApiClient.getUserProfile();
-      
+
       if (profileError) {
         console.error("❌ Error fetching profile:", profileError);
         setError("Failed to load your profile data. Please try again later.");
         return;
       }
-      
+
       if (profileData) {
         console.log("✅ Profile data loaded:", profileData);
-        
+
         // Handle credits/tokens
         if (profileData.credits !== undefined) {
           console.log("💰 Setting credits:", profileData.credits);
           setTokens(profileData.credits);
           latestTokens.current = profileData.credits;
-          
+
           // Sync with DB if needed
           if (profileData.credits === 0) {
             console.log("🔄 Syncing tokens with DB due to zero balance");
             await syncTokensWithDB();
           }
         }
-        
+
         // Handle subscription data
         if (profileData.subscription_tier) {
           const newTier = profileData.subscription_tier.toLowerCase();
@@ -96,13 +96,13 @@ export default function DashboardPage() {
           setSubscriptionTier(newTier);
           latestSubscriptionTier.current = newTier;
         }
-        
+
         if (profileData.subscription_status) {
           const newStatus = profileData.subscription_status.toLowerCase();
           console.log("📊 Setting subscription status:", newStatus);
           setSubscriptionStatus(newStatus);
           latestSubscriptionStatus.current = newStatus;
-          
+
           // Show subscription message only if status changes to active
           if (newStatus === 'active' && newStatus !== latestSubscriptionStatus.current) {
             const tierName = profileData.subscription_tier?.toLowerCase() || 'unknown';
@@ -131,15 +131,15 @@ export default function DashboardPage() {
     try {
       isLoadingProfile.current = true;
       setLoading(true);
-      
+
       const { data: profileData, error: profileError } = await ApiClient.getUserProfile();
-      
+
       if (profileError) {
         console.error("Error refreshing profile:", profileError);
         setError("Failed to refresh your profile data. Please try again later.");
         return;
       }
-      
+
       if (profileData) {
         updateStateFromProfile(profileData as ProfileData);
         setSuccessMessage("Profile refreshed successfully!");
@@ -183,7 +183,7 @@ export default function DashboardPage() {
   // Main auth effect
   useEffect(() => {
     let mounted = true;
-    
+
     const initializeUser = async () => {
       if (!mounted) return;
 
@@ -262,12 +262,12 @@ export default function DashboardPage() {
     if (creditsPurchased === 'true' && purchasedAmount) {
       console.log(`✅ Credit purchase success detected: ${purchasedAmount} credits`);
       setSuccessMessage(`Payment successful! ${purchasedAmount} credits have been added to your account.`);
-      
+
       // Remove the parameters from the URL
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
       console.log(`🔄 URL parameters removed, new URL: ${newUrl}`);
-      
+
       // Refresh profile data immediately instead of reloading the page
       console.log(`🔄 Refreshing user profile after credit purchase`);
       refreshUserProfile().then(() => {
@@ -282,19 +282,19 @@ export default function DashboardPage() {
       const planName = planType.toLowerCase();
       console.log(`✅ Plan upgrade success detected: ${planName}`);
       setSuccessMessage(`Payment successful! Your subscription has been upgraded to ${planName.toUpperCase()}.`);
-      
+
       // Update the UI immediately to reflect the upgrade
       console.log(`🔄 Updating UI to reflect plan upgrade to ${planName}`);
       console.log(`📊 Current subscription tier: ${subscriptionTier}`);
       setSubscriptionTier(planName);
       setSubscriptionStatus('active');
       console.log(`📊 Updated subscription tier: ${planName}`);
-      
+
       // Remove the session_id from the URL
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
       console.log(`🔄 URL parameters removed, new URL: ${newUrl}`);
-      
+
       // Refresh profile data immediately instead of reloading the page
       console.log(`🔄 Refreshing user profile after plan upgrade`);
       refreshUserProfile().then(() => {
@@ -308,12 +308,12 @@ export default function DashboardPage() {
     } else {
       console.log(`✅ Generic payment success detected`);
       setSuccessMessage("Payment successful! Your subscription has been updated.");
-      
+
       // Remove the session_id from the URL
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
       console.log(`🔄 URL parameters removed, new URL: ${newUrl}`);
-      
+
       // Refresh profile data immediately instead of reloading the page
       console.log(`🔄 Refreshing user profile after payment`);
       refreshUserProfile().then(() => {
@@ -330,11 +330,11 @@ export default function DashboardPage() {
     try {
       setIsUpgrading(true);
       setError(null);
-      
+
       // Check if we have a valid session before making the API call
       const supabase = AuthService.createClient();
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
+
       console.log(`🔍 Session check before API call:`, {
         hasSession: !!sessionData?.session,
         sessionError: sessionError?.message || 'none',
@@ -342,10 +342,10 @@ export default function DashboardPage() {
         currentTime: new Date().toISOString(),
         isExpired: sessionData?.session?.expires_at ? (sessionData.session.expires_at * 1000) < Date.now() : false
       });
-      
+
       if (sessionError || !sessionData.session) {
         console.error(`❌ Session error:`, sessionError);
-        setError("You must be logged in to upgrade your plan");
+        setError("You must be logged in to change your plan");
         setIsUpgrading(false);
         return;
       }
@@ -361,84 +361,164 @@ export default function DashboardPage() {
         setIsUpgrading(false);
         return;
       }
-      
+
       console.log(`✅ User verification successful:`, {
         id: userData.user.id,
         email: userData.user.email,
         lastSignIn: userData.user.last_sign_in_at,
         metadata: userData.user.user_metadata
       });
-      
-      console.log(`🔄 Starting Stripe checkout process for tier: ${plan}`);
-      
-      // Authentication token
-      const accessToken = sessionData.session.access_token;
-      
-      // Request body
-      const requestBody = { 
-        tier: plan,
-        userId: userData.user.id,
-        userEmail: userData.user.email || '',
-      };
-      
-      // Log the request details before making the call
-      console.log(`📤 Outgoing request details:`, {
-        url: '/api/stripe/checkout',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: requestBody
-      });
-      
-      // Make the API call with credentials and proper auth header
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        credentials: 'include', // Include cookies
-        body: JSON.stringify(requestBody),
-      });
-      
-      console.log(`📥 API response details:`, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        url: response.url
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.log(`❌ Checkout API error details:`, {
+
+      // Check if this is a downgrade request (indicated by :downgrade suffix)
+      const isDowngrade = plan.includes(':downgrade');
+      // Extract the actual plan name without the :downgrade suffix if present
+      const actualPlan = isDowngrade ? plan.split(':')[0] : plan;
+
+      if (isDowngrade) {
+        // Handle downgrade - call the downgrade API endpoint
+        console.log(`🔄 Starting subscription downgrade process`);
+
+        // Authentication token
+        const accessToken = sessionData.session.access_token;
+
+        // Make the API call to the downgrade endpoint
+        console.log(`📤 Outgoing downgrade request details:`, {
+          url: '/api/stripe/downgrade',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          accessToken: accessToken // Log the token for debugging
+        });
+
+        // Create a request body with the authenticated user's ID
+        // The server will verify that this matches the authenticated user making the request
+        const requestBody = {
+          userId: userData.user.id // This is the authenticated user's ID from the session
+        };
+
+        const response = await fetch('/api/stripe/downgrade', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include', // Include cookies
+          body: JSON.stringify(requestBody) // Include the user ID in the body
+        });
+
+        console.log(`📥 Downgrade API response details:`, {
           status: response.status,
-          errorData,
-          requestUrl: response.url,
-          requestId: response.headers.get('x-request-id'),
-          corsHeaders: {
-            'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
-            'access-control-allow-credentials': response.headers.get('access-control-allow-credentials')
-          }
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          url: response.url
         });
-        throw new Error(errorData.error || `HTTP error ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.url) {
-        console.log(`✅ Checkout session created successfully:`, {
-          checkoutUrl: data.url,
-          timestamp: new Date().toISOString()
-        });
-        window.location.href = data.url;
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.log(`❌ Downgrade API error details:`, {
+            status: response.status,
+            errorData,
+            requestUrl: response.url,
+            requestId: response.headers.get('x-request-id')
+          });
+          throw new Error(errorData.error || `HTTP error ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          console.log(`✅ Subscription downgraded successfully:`, {
+            message: data.message,
+            timestamp: new Date().toISOString()
+          });
+
+          // Update UI to reflect the downgrade
+          setSubscriptionTier('free');
+          setSubscriptionStatus('inactive');
+
+          // Show success message
+          setSuccessMessage(data.message || 'Your subscription has been cancelled successfully.');
+
+          // Refresh profile data
+          await refreshUserProfile();
+
+          // Hide success message after 5 seconds
+          setTimeout(() => {
+            setSuccessMessage(null);
+          }, 5000);
+        } else {
+          throw new Error("Downgrade failed");
+        }
       } else {
-        throw new Error("No checkout URL returned");
+        // Handle upgrade - call the checkout API endpoint
+        console.log(`🔄 Starting Stripe checkout process for tier: ${actualPlan}`);
+
+        // Request body with the authenticated user's ID and email
+        // The server will verify that this matches the authenticated user making the request
+        const requestBody = {
+          tier: actualPlan,
+          userId: userData.user.id, // This is the authenticated user's ID from the session
+          userEmail: userData.user.email || '',
+        };
+
+        // Log the request details before making the call
+        console.log(`📤 Outgoing checkout request details:`, {
+          url: '/api/stripe/checkout',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: requestBody
+        });
+
+        // Make the API call with credentials to include cookies for authentication
+        const response = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // Include cookies for authentication
+          body: JSON.stringify(requestBody),
+        });
+
+        console.log(`📥 API response details:`, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          url: response.url
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.log(`❌ Checkout API error details:`, {
+            status: response.status,
+            errorData,
+            requestUrl: response.url,
+            requestId: response.headers.get('x-request-id'),
+            corsHeaders: {
+              'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+              'access-control-allow-credentials': response.headers.get('access-control-allow-credentials')
+            }
+          });
+          throw new Error(errorData.error || `HTTP error ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.url) {
+          console.log(`✅ Checkout session created successfully:`, {
+            checkoutUrl: data.url,
+            timestamp: new Date().toISOString()
+          });
+          window.location.href = data.url;
+        } else {
+          throw new Error("No checkout URL returned");
+        }
       }
     } catch (err) {
-      console.error('Checkout error:', err);
-      setError('Failed to start checkout process. Please try again later.');
+      console.error('Plan change error:', err);
+      setError('Failed to process your request. Please try again later.');
       setIsUpgrading(false);
     }
   };
@@ -447,20 +527,20 @@ export default function DashboardPage() {
     try {
       setIsProcessingCredits(true);
       setError(null); // Clear any previous errors
-      
+
       // Get access token from current session
       const supabase = AuthService.createClient();
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError || !sessionData?.session?.access_token) {
         console.error('No valid session found for credit purchase:', sessionError);
         setError('No valid session found. Please log in again.');
         setIsProcessingCredits(false);
         return;
       }
-      
+
       const accessToken = sessionData.session.access_token;
-      
+
       // Get the user data for verification
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData.user) {
@@ -469,37 +549,37 @@ export default function DashboardPage() {
         setIsProcessingCredits(false);
         return;
       }
-      
+
       // Log request details for debugging
       console.log(`🔄 Sending credit purchase request:`, {
         creditAmount,
         userId: userData.user.id,
         userEmail: userData.user.email
       });
-      
+
       // Request body
       const requestBody = {
         amount: creditAmount // This is CREDITS, not dollars
       };
-      
+
       // Create Stripe checkout session for credit purchase
       const response = await fetch('/api/stripe/credits', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         },
         credentials: 'include', // Include cookies for additional auth context
         body: JSON.stringify(requestBody),
       });
-      
+
       // Log response details
       console.log(`📥 Credit purchase response:`, {
         status: response.status,
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries())
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         console.error(`❌ Credit purchase API error:`, {
@@ -509,9 +589,9 @@ export default function DashboardPage() {
         });
         throw new Error(errorData.error || 'Failed to create checkout session');
       }
-      
+
       const { url } = await response.json();
-      
+
       // Redirect to checkout
       if (url) {
         console.log(`✅ Credit purchase checkout URL created:`, {
@@ -535,17 +615,17 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       console.log("🔄 Set loading state to true");
-      
+
       // Use ApiClient instead of direct Supabase access
       console.log("📤 Calling ApiClient.signOut()");
       const { error } = await ApiClient.signOut();
-      
+
       if (error) {
         console.error("❌ Error signing out:", error);
         setError("Failed to sign out. Please try again.");
         return;
       }
-      
+
       console.log("✅ Successfully signed out, redirecting to home page");
       // Redirect to home page
       router.push("/");
@@ -605,7 +685,7 @@ export default function DashboardPage() {
               {successMessage}
             </div>
           )}
-          
+
           {error && (
             <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-800'}`}>
               {error}
@@ -622,28 +702,28 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-bold capitalize">{subscriptionTier} Plan</p>
                     <p className="text-sm opacity-75">
-                      {subscriptionTier === 'free' 
-                        ? '30 credits per day' 
-                        : subscriptionTier === 'pro' 
-                          ? '100 credits per day' 
+                      {subscriptionTier === 'free'
+                        ? '30 credits per day'
+                        : subscriptionTier === 'pro'
+                          ? '100 credits per day'
                           : '1000 credits per day'}
                     </p>
                     {subscriptionStatus && subscriptionTier !== 'free' && (
                       <p className="text-sm mt-1 capitalize">
                         Status: <span className={`font-medium ${
-                          subscriptionStatus === 'active' 
+                          subscriptionStatus === 'active'
                             ? theme === 'dark' ? 'text-green-400' : 'text-green-600'
                             : theme === 'dark' ? 'text-red-400' : 'text-red-600'
                         }`}>{subscriptionStatus}</span>
                       </p>
                     )}
                   </div>
-                  
+
                   <div className="text-right">
                     <p className="text-xl font-bold">
                       {/* Force display tokens regardless of loading state */}
-                      {tokens !== null && tokens !== undefined 
-                        ? tokens 
+                      {tokens !== null && tokens !== undefined
+                        ? tokens
                         : '0'}
                     </p>
                     <p className="text-sm opacity-75">Credits Available</p>
@@ -651,19 +731,19 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Credit Purchase for Pro and Ultra subscribers */}
             {subscriptionTier && subscriptionTier !== 'free' && (
-              <CreditPurchase 
+              <CreditPurchase
                 subscriptionTier={subscriptionTier}
                 isLoading={isProcessingCredits}
                 onPurchase={handlePurchaseCredits}
               />
             )}
           </div>
-          
+
           {/* Subscription Plans UNDER DEV */}
-          <SubscriptionPlans 
+          <SubscriptionPlans
             currentPlan={subscriptionTier}
             credits={tokens}
             onSelectPlan={handleSelectPlan}
