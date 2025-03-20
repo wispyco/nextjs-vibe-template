@@ -644,33 +644,36 @@ export default function DashboardPage() {
         <div className="flex justify-between items-center mb-8">
           {/* Profile Section */}
           {userEmail && (
-            <div className="flex justify-between items-center w-full">
-              <div className={`p-3 rounded-lg flex items-center gap-3 ${theme === "dark" ? "bg-gray-800" : "bg-white shadow-sm"}`}>
-                <div className="flex flex-col">
-                  <span className="text-sm opacity-75">Signed in as:</span>
-                  <span className="font-medium">{userEmail}</span>
+            <div className="flex justify-between items-start w-full">
+              <div className="flex flex-col gap-2">
+                <div className={`p-3 rounded-lg flex items-center gap-3 ${theme === "dark" ? "bg-gray-800" : "bg-white shadow-sm"}`}>
+                  <div className="flex flex-col">
+                    <span className="text-sm opacity-75">Signed in as:</span>
+                    <span className="font-medium">{userEmail}</span>
+                  </div>
                 </div>
+                <button
+                  onClick={handleLogout}
+                  className={`py-2.5 px-6 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2 ${
+                    theme === "dark"
+                      ? "bg-red-800 hover:bg-red-700 text-white"
+                      : "bg-red-500 hover:bg-red-600 text-white"
+                  }`}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Log Out
+                    </>
+                  )}
+                </button>
               </div>
-              <button
-                onClick={handleLogout}
-                className={`ml-4 py-2.5 px-6 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2 ${
-                  theme === "dark"
-                    ? "bg-red-800 hover:bg-red-700 text-white"
-                    : "bg-red-500 hover:bg-red-600 text-white"
-                }`}
-                disabled={loading}
-              >
-                {loading ? (
-                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Log Out
-                  </>
-                )}
-              </button>
+              <div className="flex-1"></div>
             </div>
           )}
         </div>
