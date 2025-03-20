@@ -567,8 +567,8 @@ function ResultsContent() {
     // Generate apps in parallel with a small delay between each to avoid overwhelming the server
     // This creates a staggered loading effect that feels more responsive
     const generateAppsWithStagger = async () => {
-      const batchSize = 3; // Process in batches of 3 for better performance
-      const delay = 500; // 500ms delay between batches
+      const batchSize = 6; // Process in batches of 3 for better performance
+      const delay = 100; // 500ms delay between batches
       
       for (let batch = 0; batch < Math.ceil(numGenerations / batchSize); batch++) {
         const startIdx = batch * batchSize;

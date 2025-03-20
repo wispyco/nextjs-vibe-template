@@ -374,13 +374,23 @@ export default function AppTile({
           <div className="h-full">
             {viewMode === "preview" ? (
               <div key={previewKey} className="h-full" onClick={onClick}>
-                <div className="w-[200%] h-[200%] transform scale-50 origin-top-left">
-                  <iframe
-                    srcDoc={editedCode}
-                    className="w-full h-full border-0 bg-white w-full h-full"
-                    title="Preview"
-                  />
-                </div>
+                {isExpanded ? (
+                  <div className="w-full h-full">
+                    <iframe
+                      srcDoc={editedCode}
+                      className="w-full h-full border-0 bg-white"
+                      title="Preview"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-[200%] h-[200%] transform scale-50 origin-top-left">
+                    <iframe
+                      srcDoc={editedCode}
+                      className="w-full h-full border-0 bg-white"
+                      title="Preview"
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               <div className="h-full" onClick={(e) => e.stopPropagation()}>
