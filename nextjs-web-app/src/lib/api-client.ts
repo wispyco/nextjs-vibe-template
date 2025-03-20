@@ -33,6 +33,12 @@ export class ApiClient {
       }
 
       const data = await response.json();
+
+      // Log if credits were refreshed
+      if (data.credits_refreshed) {
+        console.log('Credits were refreshed during user fetch');
+      }
+
       return { data: data.user, error: null };
     } catch (error) {
       console.error('Error getting current user:', error);
@@ -121,10 +127,12 @@ export class ApiClient {
 
   /**
    * Get user profile data
+   * This will also trigger a credit refresh if needed
    */
   static async getUserProfile(): Promise<ApiResponse<any>> {
     try {
-      const response = await fetch('/api/user/profile', {
+      // Use the auth/user endpoint which now includes credit refresh logic
+      const response = await fetch('/api/auth/user', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -138,6 +146,12 @@ export class ApiClient {
       }
 
       const data = await response.json();
+
+      // Log if credits were refreshed
+      if (data.credits_refreshed) {
+        console.log('Credits were refreshed during profile fetch');
+      }
+
       return { data: data.profile, error: null };
     } catch (error) {
       console.error('Error getting profile:', error);
@@ -174,10 +188,12 @@ export class ApiClient {
 
   /**
    * Get user credits
+   * This will also trigger a credit refresh if needed
    */
   static async getUserCredits(): Promise<ApiResponse<number>> {
     try {
-      const response = await fetch('/api/user/credits', {
+      // Use the auth/user endpoint which now includes credit refresh logic
+      const response = await fetch('/api/auth/user', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -191,7 +207,13 @@ export class ApiClient {
       }
 
       const data = await response.json();
-      return { data: data.credits, error: null };
+
+      // Log if credits were refreshed
+      if (data.credits_refreshed) {
+        console.log('Credits were refreshed during credits fetch');
+      }
+
+      return { data: data.profile?.credits || 0, error: null };
     } catch (error) {
       console.error('Error getting credits:', error);
       return { data: null, error: 'Failed to get credits' };
@@ -224,4 +246,4 @@ export class ApiClient {
       return { data: null, error: 'Failed to update credits' };
     }
   }
-} 
+}

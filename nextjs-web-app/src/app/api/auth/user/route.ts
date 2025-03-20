@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from '@supabase/ssr';
+import { checkAndRefreshCredits } from '@/lib/credits';
 
 export const runtime = "edge";
 
@@ -29,57 +30,69 @@ export async function GET(request: Request) {
             const response = NextResponse.next({
               request,
             });
-            
+
             cookiesToSet.forEach(({ name, value, options }) => {
               response.cookies.set(name, value, options);
             });
-            
+
             return response;
           }
         },
       }
     );
-    
+
     // Get the current user from the session
     const { data, error } = await supabase.auth.getUser();
-    
+
     if (error || !data.user) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         authenticated: false,
         user: null
       }, { status: 401 });
     }
-    
+
     const user = data.user;
-    
+
     // Get the user's profile data using the admin client
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
-    
+
     if (profileError) {
       console.error('Error getting user profile:', profileError);
-      return NextResponse.json({ 
+      return NextResponse.json({
         authenticated: true,
         user,
         profile: null,
         error: 'Failed to get profile data'
       }, { status: 500 });
     }
-    
-    return NextResponse.json({ 
+
+    // Check if the user's credits need to be refreshed
+    // This will automatically refresh credits if needed
+    const { credits, refreshed } = await checkAndRefreshCredits(supabase, user.id);
+
+    // If credits were refreshed, update the profile object
+    if (refreshed) {
+      console.log(`Credits refreshed for user ${user.id}. New balance: ${credits}`);
+      profile.credits = credits;
+      profile.last_credit_refresh = new Date().toISOString();
+    }
+
+    return NextResponse.json({
       authenticated: true,
       user,
-      profile
+      profile,
+      credits_refreshed: refreshed
     }, { status: 200 });
   } catch (error) {
     console.error('Error in /api/auth/user:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       authenticated: false,
       user: null,
       error: 'Failed to get user data'
     }, { status: 500 });
   }
-} 
+}

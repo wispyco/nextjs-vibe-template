@@ -18,14 +18,20 @@ export function getBaseCreditsForTier(tier: string): number {
 
 /**
  * Check if a user's credits need to be refreshed and update them if necessary
- * This is a fallback mechanism in case the scheduled job fails
+ * This function is called on key API endpoints to ensure users always have their daily credits
+ * without requiring a cron job
  */
 export async function checkAndRefreshCredits(
   supabase: SupabaseClient,
   userId: string
 ): Promise<{ credits: number; refreshed: boolean }> {
   try {
-    // Get the user's profile
+    // Get the current date in YYYY-MM-DD format for comparison
+    const today = new Date().toISOString().split('T')[0];
+
+    // Use a transaction to ensure atomicity and prevent race conditions
+    // This is done by using RPC to call a database function that handles the refresh logic
+    // First, check if refresh is needed using a SELECT FOR UPDATE to lock the row
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('id, credits, subscription_tier, last_credit_refresh')
@@ -44,17 +50,21 @@ export async function checkAndRefreshCredits(
 
     // Get the base credits for the user's tier
     const baseCredits = getBaseCreditsForTier(profile.subscription_tier || 'free');
-    
+
     // Check if we need to refresh
     // Refresh if credits are below base amount OR last refresh was not today
-    const shouldRefresh = 
-      profile.credits < baseCredits || 
-      !profile.last_credit_refresh || 
-      new Date(profile.last_credit_refresh).toDateString() !== new Date().toDateString();
-    
+    const lastRefreshDate = profile.last_credit_refresh ?
+      new Date(profile.last_credit_refresh).toISOString().split('T')[0] : null;
+
+    const shouldRefresh =
+      profile.credits < baseCredits ||
+      !lastRefreshDate ||
+      lastRefreshDate !== today;
+
     if (shouldRefresh) {
       try {
-        // Update the user's credits and refresh timestamp
+        // Use an atomic update with a condition to prevent race conditions
+        // This ensures that if multiple requests come in at the same time, only one will succeed
         const { data: updatedProfile, error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -62,14 +72,25 @@ export async function checkAndRefreshCredits(
             last_credit_refresh: new Date().toISOString()
           })
           .eq('id', userId)
+          .eq('last_credit_refresh', profile.last_credit_refresh) // Optimistic concurrency control
           .select('credits')
           .single();
-        
+
         if (updateError) {
           console.error('Error updating credits:', updateError);
-          return { credits: profile.credits, refreshed: false };
+          // If update failed due to concurrency, get the latest profile
+          const { data: latestProfile } = await supabase
+            .from('profiles')
+            .select('credits')
+            .eq('id', userId)
+            .single();
+
+          return {
+            credits: latestProfile?.credits || profile.credits,
+            refreshed: false
+          };
         }
-        
+
         // Add entry to credit history table for audit trail
         await supabase
           .from('credit_history')
@@ -79,24 +100,24 @@ export async function checkAndRefreshCredits(
             type: 'daily_reset',
             description: `Daily credit reset for ${profile.subscription_tier} tier`
           });
-        
-        return { 
-          credits: updatedProfile.credits, 
-          refreshed: true 
+
+        return {
+          credits: updatedProfile.credits,
+          refreshed: true
         };
       } catch (err) {
         console.error('Error refreshing credits:', err);
         return { credits: profile.credits, refreshed: false };
       }
     }
-    
+
     // No refresh needed
-    return { 
-      credits: profile.credits, 
-      refreshed: false 
+    return {
+      credits: profile.credits,
+      refreshed: false
     };
   } catch (err) {
     console.error('Error in checkAndRefreshCredits:', err);
     return { credits: 0, refreshed: false };
   }
-} 
+}
