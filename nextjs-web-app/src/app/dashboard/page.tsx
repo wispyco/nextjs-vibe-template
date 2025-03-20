@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
@@ -15,31 +15,146 @@ export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Use our new auth context instead of zustand store
-  const { user, tokens, setTokens, syncTokensWithDB, isLoading, setUser } = useAuth();
+  const { user, tokens, setTokens, syncTokensWithDB, isLoading } = useAuth();
   
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [credits, setCredits] = useState<number | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isProcessingCredits, setIsProcessingCredits] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   // Add refs to track latest values without causing re-renders
-  const latestCredits = useRef<number | null>(null);
   const latestTokens = useRef<number>(tokens);
   const latestSubscriptionTier = useRef<string>(subscriptionTier);
   const latestSubscriptionStatus = useRef<string | null>(subscriptionStatus);
-  const hasShownSubscriptionMessage = useRef<boolean>(false);
+  const isLoadingProfile = useRef<boolean>(false);
+
+  // Define profile data type
+  interface ProfileData {
+    credits: number;
+    subscription_tier?: string;
+    subscription_status?: string;
+    email?: string;
+  }
+
+  // Helper function to update state from profile data
+  const updateStateFromProfile = useCallback((profileData: ProfileData) => {
+    if (profileData.credits !== undefined) {
+      setTokens(profileData.credits);
+    }
+    if (profileData.subscription_tier) {
+      setSubscriptionTier(profileData.subscription_tier);
+    }
+    if (profileData.subscription_status) {
+      setSubscriptionStatus(profileData.subscription_status);
+    }
+  }, [setTokens, setSubscriptionTier, setSubscriptionStatus]);
+
+  // Profile data loading function
+  const loadProfileData = useCallback(async () => {
+    if (isLoadingProfile.current) {
+      console.log("🚫 Skipping profile load - already in progress");
+      return;
+    }
+
+    try {
+      isLoadingProfile.current = true;
+      setLoading(true);
+      console.log("🔄 Loading profile data");
+      
+      const { data: profileData, error: profileError } = await ApiClient.getUserProfile();
+      
+      if (profileError) {
+        console.error("❌ Error fetching profile:", profileError);
+        setError("Failed to load your profile data. Please try again later.");
+        return;
+      }
+      
+      if (profileData) {
+        console.log("✅ Profile data loaded:", profileData);
+        
+        // Handle credits/tokens
+        if (profileData.credits !== undefined) {
+          console.log("💰 Setting credits:", profileData.credits);
+          setTokens(profileData.credits);
+          latestTokens.current = profileData.credits;
+          
+          // Sync with DB if needed
+          if (profileData.credits === 0) {
+            console.log("🔄 Syncing tokens with DB due to zero balance");
+            await syncTokensWithDB();
+          }
+        }
+        
+        // Handle subscription data
+        if (profileData.subscription_tier) {
+          const newTier = profileData.subscription_tier.toLowerCase();
+          console.log("📊 Setting subscription tier:", newTier);
+          setSubscriptionTier(newTier);
+          latestSubscriptionTier.current = newTier;
+        }
+        
+        if (profileData.subscription_status) {
+          const newStatus = profileData.subscription_status.toLowerCase();
+          console.log("📊 Setting subscription status:", newStatus);
+          setSubscriptionStatus(newStatus);
+          latestSubscriptionStatus.current = newStatus;
+          
+          // Show subscription message only if status changes to active
+          if (newStatus === 'active' && newStatus !== latestSubscriptionStatus.current) {
+            const tierName = profileData.subscription_tier?.toLowerCase() || 'unknown';
+            setSuccessMessage(`Your ${tierName} subscription is active!`);
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }
+        }
+      }
+    } catch (error: unknown) {
+      console.error("❌ Error in loadProfileData:", error);
+      setError("An unexpected error occurred. Please try again later.");
+    } finally {
+      console.log("✅ Profile data loading complete");
+      isLoadingProfile.current = false;
+      setLoading(false);
+    }
+  }, [setLoading, setError, setTokens, setSubscriptionTier, setSubscriptionStatus, syncTokensWithDB]);
+
+  // Function to refresh user profile
+  const refreshUserProfile = useCallback(async () => {
+    if (isLoadingProfile.current) {
+      console.log("🚫 Skipping profile refresh - already loading");
+      return;
+    }
+
+    try {
+      isLoadingProfile.current = true;
+      setLoading(true);
+      
+      const { data: profileData, error: profileError } = await ApiClient.getUserProfile();
+      
+      if (profileError) {
+        console.error("Error refreshing profile:", profileError);
+        setError("Failed to refresh your profile data. Please try again later.");
+        return;
+      }
+      
+      if (profileData) {
+        updateStateFromProfile(profileData as ProfileData);
+        setSuccessMessage("Profile refreshed successfully!");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
+    } catch (error) {
+      console.error("Error in refreshUserProfile:", error);
+      setError("An unexpected error occurred. Please try again later.");
+    } finally {
+      isLoadingProfile.current = false;
+      setLoading(false);
+    }
+  }, [setLoading, setError, updateStateFromProfile, setSuccessMessage]);
 
   // Update refs when values change
-  useEffect(() => {
-    latestCredits.current = credits;
-  }, [credits]);
-
   useEffect(() => {
     latestTokens.current = tokens;
   }, [tokens]);
@@ -52,131 +167,90 @@ export default function DashboardPage() {
     latestSubscriptionStatus.current = subscriptionStatus;
   }, [subscriptionStatus]);
 
-  // Effect to check auth and load profile data
+  // Safety timeout effect
   useEffect(() => {
-    if (!user && !isLoading) {
-      router.push("/");
-      return;
-    }
-
-    if (!user || isLoading) {
-      return;
-    }
-
-    // Set email and welcome message
-    setUserEmail(user.email || null);
-    
-    // Check if this is a new login
-    const isNewLogin = !sessionStorage.getItem('dashboard_visited');
-    if (isNewLogin) {
-      setSuccessMessage(`Welcome back, ${user.email}!`);
-      sessionStorage.setItem('dashboard_visited', 'true');
-      setTimeout(() => setSuccessMessage(null), 5000);
-    }
-
-    // Load user profile data
-    const loadProfileData = async () => {
-      try {
-        setLoading(true);
-        
-        // Use ApiClient instead of direct Supabase access
-        const { data: profileData, error: profileError } = await ApiClient.getUserProfile();
-        
-        if (profileError) {
-          console.error("Error fetching profile:", profileError);
-          setError("Failed to load your profile data. Please try again later.");
-          return;
-        }
-        
-        if (profileData) {
-          // Update state with profile data
-          updateStateFromProfile(profileData);
-          
-          // Check if credits need to be refreshed
-          if (tokens !== profileData.credits) {
-            setTokens(profileData.credits || 0);
-          }
-        }
-        
-        // Check if we need to show subscription status message
-        if (profileData?.subscription_status === 'active' && !hasShownSubscriptionMessage.current) {
-          setSuccessMessage(`Your ${profileData.subscription_tier} subscription is active!`);
-          hasShownSubscriptionMessage.current = true;
-          setTimeout(() => setSuccessMessage(null), 5000);
-        }
-      } catch (error) {
-        console.error("Error in loadProfileData:", error);
-        setError("An unexpected error occurred. Please try again later.");
-      } finally {
+    const timeoutId = setTimeout(() => {
+      if (isLoadingProfile.current) {
+        console.log("⚠️ Loading timeout reached - resetting loading state");
+        isLoadingProfile.current = false;
         setLoading(false);
       }
-    };
+    }, 10000);
 
-    loadProfileData();
+    return () => clearTimeout(timeoutId);
+  }, []);
 
-    // Cleanup
-    return () => {
-      if (window.location.pathname !== '/dashboard') {
-        sessionStorage.removeItem('dashboard_visited');
-      }
-    };
-  }, [user, isLoading, router, setTokens]);
-
-  // Modify the force refresh tokens effect to only run on mount
+  // Main auth effect
   useEffect(() => {
     let mounted = true;
     
-    const initialSync = async () => {
-      // If we have a user but credits/tokens aren't loaded, try to sync
-      if (user && tokens === 0 && !loading && mounted) {
-        await syncTokensWithDB();
+    const initializeUser = async () => {
+      if (!mounted) return;
+
+      console.log("🔄 Auth effect triggered:", {
+        user,
+        isLoading,
+        userEmail,
+        subscriptionTier,
+        subscriptionStatus
+      });
+
+      if (!user && !isLoading) {
+        console.log("❌ No user and not loading - redirecting to home");
+        router.push("/");
+        return;
+      }
+
+      if (!user || isLoading) {
+        console.log("⏳ Waiting for auth to complete");
+        return;
+      }
+
+      // Set email immediately when user is available
+      if (user.email && !userEmail) {
+        console.log("✉️ Setting user email:", user.email);
+        setUserEmail(user.email);
+      }
+
+      // Load profile data whenever we have a user and auth is complete
+      if (user.email) {
+        console.log("🔄 Loading profile data for user:", user.email);
+        await loadProfileData();
       }
     };
-    
-    initialSync();
-    
+
+    void initializeUser();
+
+    // Set up an interval to refresh profile data every minute
+    const intervalId = setInterval(() => {
+      if (user && !isLoading) {
+        console.log("🔄 Periodic profile refresh");
+        void loadProfileData();
+      }
+    }, 60000); // Every minute
+
     return () => {
       mounted = false;
+      clearInterval(intervalId);
     };
-  }, []); // Empty dependency array - only run on mount
+  }, [user, isLoading, router, userEmail, loadProfileData]);
 
-  // Helper function to update state from profile - modify to prevent loops
-  const updateStateFromProfile = (profile: {
-    credits?: number;
-    subscription_tier?: string;
-    subscription_status?: string;
-    // Add additional properties that might be accessed
-    [key: string]: any;
-  }) => {
-    if (profile) {
-      // Only update if the values are different
-      const creditValue = profile.credits !== undefined ? profile.credits : 0;
-      if (credits !== creditValue) {
-        setCredits(creditValue);
-        setTokens(creditValue);
-      }
-      
-      if (subscriptionTier !== (profile.subscription_tier || 'free')) {
-        setSubscriptionTier(profile.subscription_tier || 'free');
-      }
-      
-      if (subscriptionStatus !== profile.subscription_status) {
-        setSubscriptionStatus(profile.subscription_status || null);
-      }
-      
-      // Use indexer to avoid type error
-      if (userEmail !== profile.email) {
-        setUserEmail(profile.email || null);
-      }
+  // Remove the initial sync effect since we're handling it in loadProfileData
+  useEffect(() => {
+    if (user && !isLoading) {
+      console.log("🔄 Initial profile load");
+      void loadProfileData();
     }
-  };
+  }, [user, isLoading, loadProfileData]);
 
-  // Check for successful Stripe session
+  // 7. Stripe session effect
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     const creditsPurchased = searchParams.get('credits_purchased');
     const purchasedAmount = searchParams.get('amount');
     const planType = searchParams.get('plan');
+
+    if (!sessionId) return;
 
     console.log(`🔍 Checking URL parameters:`, {
       sessionId,
@@ -185,7 +259,7 @@ export default function DashboardPage() {
       planType
     });
 
-    if (sessionId && creditsPurchased === 'true' && purchasedAmount) {
+    if (creditsPurchased === 'true' && purchasedAmount) {
       console.log(`✅ Credit purchase success detected: ${purchasedAmount} credits`);
       setSuccessMessage(`Payment successful! ${purchasedAmount} credits have been added to your account.`);
       
@@ -203,7 +277,7 @@ export default function DashboardPage() {
           setSuccessMessage(null);
         }, 5000);
       });
-    } else if (sessionId && planType) {
+    } else if (planType) {
       // Handle plan upgrade success
       const planName = planType.toLowerCase();
       console.log(`✅ Plan upgrade success detected: ${planName}`);
@@ -231,7 +305,7 @@ export default function DashboardPage() {
           setSuccessMessage(null);
         }, 5000);
       });
-    } else if (sessionId) {
+    } else {
       console.log(`✅ Generic payment success detected`);
       setSuccessMessage("Payment successful! Your subscription has been updated.");
       
@@ -250,7 +324,7 @@ export default function DashboardPage() {
         }, 5000);
       });
     }
-  }, [searchParams]);
+  }, [searchParams, subscriptionTier, refreshUserProfile]);
 
   const handleSelectPlan = async (plan: string) => {
     try {
@@ -457,124 +531,32 @@ export default function DashboardPage() {
   };
 
   const handleLogout = async () => {
+    console.log("🔄 Starting logout process");
     try {
       setLoading(true);
+      console.log("🔄 Set loading state to true");
       
       // Use ApiClient instead of direct Supabase access
+      console.log("📤 Calling ApiClient.signOut()");
       const { error } = await ApiClient.signOut();
       
       if (error) {
-        console.error("Error signing out:", error);
+        console.error("❌ Error signing out:", error);
         setError("Failed to sign out. Please try again.");
         return;
       }
       
+      console.log("✅ Successfully signed out, redirecting to home page");
       // Redirect to home page
       router.push("/");
     } catch (error) {
-      console.error("Error in handleLogout:", error);
+      console.error("❌ Error in handleLogout:", error);
       setError("An unexpected error occurred. Please try again later.");
     } finally {
+      console.log("🔄 Setting loading state to false");
       setLoading(false);
     }
   };
-
-  // Helper function to get user data
-  const getUserData = async () => {
-    try {
-      setLoading(true);
-      
-      // Use ApiClient instead of direct Supabase access
-      const { data: userData, error: userError } = await ApiClient.getCurrentUser();
-      
-      if (userError || !userData) {
-        console.error("Error fetching user data:", userError);
-        setError("Failed to load your user data. Please try again later.");
-        return;
-      }
-      
-      setUser(userData);
-      
-      // Get profile data
-      await loadProfileData();
-    } catch (error) {
-      console.error("Error in getUserData:", error);
-      setError("An unexpected error occurred. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Fix the getUserProfile reference by creating a new local function
-  const refreshUserProfile = async () => {
-    try {
-      setLoading(true);
-      
-      // Use ApiClient instead of direct Supabase access
-      const { data: profileData, error: profileError } = await ApiClient.getUserProfile();
-      
-      if (profileError) {
-        console.error("Error refreshing profile:", profileError);
-        setError("Failed to refresh your profile data. Please try again later.");
-        return;
-      }
-      
-      if (profileData) {
-        // Update state with profile data
-        updateStateFromProfile(profileData);
-        
-        // Check if credits need to be refreshed
-        if (tokens !== profileData.credits) {
-          setTokens(profileData.credits || 0);
-        }
-        
-        setSuccessMessage("Profile refreshed successfully!");
-        setTimeout(() => setSuccessMessage(null), 3000);
-      }
-    } catch (error) {
-      console.error("Error in refreshUserProfile:", error);
-      setError("An unexpected error occurred. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Add a safety mechanism to prevent infinite loading
-  useEffect(() => {
-    // If loading is true for more than 10 seconds, force it to false
-    if (loading) {
-      const timeout = setTimeout(() => {
-        console.log("Safety timeout triggered - forcing loading to false");
-        setLoading(false);
-      }, 10000);
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [loading]);
-
-  // Add a cleanup effect for when the component unmounts
-  useEffect(() => {
-    return () => {
-      // Clear any potential loading state when component unmounts
-      setLoading(false);
-    };
-  }, []);
-
-  // Remove excessive logging in production
-  // console.log("Dashboard render - tokens:", tokens, "credits:", credits, "loading:", loading, "tokenLoading:", tokenLoading);
-
-  if (loading) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center ${theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
-            <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
-          </div>
-          <p className="mt-3">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`min-h-screen ${theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
@@ -582,20 +564,32 @@ export default function DashboardPage() {
         <div className="flex justify-between items-center mb-8">
           {/* Profile Section */}
           {userEmail && (
-            <div className={`p-3 rounded-lg flex items-center gap-3 ${theme === "dark" ? "bg-gray-800" : "bg-white shadow-sm"}`}>
-              <div className="flex flex-col">
-                <span className="text-sm opacity-75">Signed in as:</span>
-                <span className="font-medium">{userEmail}</span>
+            <div className="flex justify-between items-center w-full">
+              <div className={`p-3 rounded-lg flex items-center gap-3 ${theme === "dark" ? "bg-gray-800" : "bg-white shadow-sm"}`}>
+                <div className="flex flex-col">
+                  <span className="text-sm opacity-75">Signed in as:</span>
+                  <span className="font-medium">{userEmail}</span>
+                </div>
               </div>
               <button
                 onClick={handleLogout}
-                className={`py-2 px-4 rounded-lg text-sm font-medium ${
+                className={`ml-4 py-2.5 px-6 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2 ${
                   theme === "dark"
                     ? "bg-red-800 hover:bg-red-700 text-white"
                     : "bg-red-500 hover:bg-red-600 text-white"
                 }`}
+                disabled={loading}
               >
-                Log Out
+                {loading ? (
+                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Log Out
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -650,9 +644,7 @@ export default function DashboardPage() {
                       {/* Force display tokens regardless of loading state */}
                       {tokens !== null && tokens !== undefined 
                         ? tokens 
-                        : credits !== null 
-                          ? credits 
-                          : '0'}
+                        : '0'}
                     </p>
                     <p className="text-sm opacity-75">Credits Available</p>
                   </div>
@@ -673,7 +665,7 @@ export default function DashboardPage() {
           {/* Subscription Plans UNDER DEV */}
           <SubscriptionPlans 
             currentPlan={subscriptionTier}
-            credits={credits}
+            credits={tokens}
             onSelectPlan={handleSelectPlan}
             isLoading={isUpgrading}
             subscriptionStatus={subscriptionStatus}

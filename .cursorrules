@@ -3,9 +3,9 @@ we are using a hosted supabase db which can be read only queried by using the MC
 
 the root of the project is in the `nextjs-web-app` folder
 
-where possible test all changes using automated scripts
-
 ensure that the frontend DOES NOT ACCESS THE DATABASE DIRECTLY or use the supabase client directly
+
+use `gh` cli to do github actions
 
 ---
 # Specify the following for Cursor rules
