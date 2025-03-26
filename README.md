@@ -295,13 +295,13 @@ The application uses a Supabase PostgreSQL database with the following tables:
    - Purpose: Stores user profile information with subscription and credit data
    - Schema:
      * `id` (UUID): Primary key, linked to auth.users
-     * `credits` (INTEGER): Current credit balance for user
-     * `max_monthly_credits` (INTEGER): Monthly credit limit based on subscription tier
+     * `credits` (INTEGER): Current credit balance
      * `stripe_customer_id` (TEXT): Stripe customer reference
      * `stripe_subscription_id` (TEXT): Stripe subscription reference
+     * `last_credit_refresh` (TIMESTAMP): Last credit refresh timestamp
+     * `last_refresh_date` (DATE): Date of last credit refresh
      * `subscription_period_start` (TIMESTAMP): Start of current subscription period
      * `subscription_period_end` (TIMESTAMP): End of current subscription period
-     * `last_credited_at` (TIMESTAMP): When credits were last refreshed
      * `subscription_tier` (ENUM): 'free', 'pro', or 'ultra'
      * `subscription_status` (ENUM): Status from Stripe (active, past_due, etc.)
      * `updated_at` (TIMESTAMP): Last update timestamp
@@ -320,20 +320,8 @@ The application uses a Supabase PostgreSQL database with the following tables:
      * `description` (TEXT): Additional details
      * `created_at` (TIMESTAMP): When record was created
 
-3. `credit_purchases`
-   - Purpose: Records one-time credit purchases
-   - Schema:
-     * `id` (UUID): Primary key
-     * `user_id` (UUID): Reference to auth.users
-     * `amount` (INTEGER): Number of credits purchased
-     * `cost` (DECIMAL): Amount paid
-     * `currency` (TEXT): Currency of payment
-     * `stripe_session_id` (TEXT): Stripe checkout session ID
-     * `stripe_payment_intent_id` (TEXT): Stripe payment intent ID
-     * `created_at` (TIMESTAMP): When purchase was made
-
-4. `credit_history`
-   - Purpose: Audit trail of all credit transactions
+3. `credit_history`
+   - Purpose: Records all credit transactions
    - Schema:
      * `id` (UUID): Primary key
      * `user_id` (UUID): Reference to auth.users
@@ -341,27 +329,42 @@ The application uses a Supabase PostgreSQL database with the following tables:
      * `type` (TEXT): Transaction type (purchase, usage, reset, etc.)
      * `description` (TEXT): Additional details
      * `created_at` (TIMESTAMP): When transaction occurred
+     * `request_id` (TEXT): For deduplication of requests
 
-5. `credit_reset_logs`
-   - Purpose: Logs when the credit reset function runs
+4. `credit_reset_logs`
+   - Purpose: Logs credit reset operations
    - Schema:
-     * `id` (UUID): Primary key
+     * `id` (SERIAL): Primary key
      * `executed_at` (TIMESTAMP): When reset was executed
      * `success` (BOOLEAN): Whether reset was successful
-     * `error_message` (TEXT): Any error details if failed
 
-### Database Functions
+### Credit System
 
-The database includes the following secure functions for managing credits:
+The credit system has been optimized for reliability and performance:
 
-- `add_user_credits`: Safely add credits to a user
-- `deduct_user_credits`: Safely remove credits from a user
-- `reset_daily_credits`: Automatically refresh credits daily
-- `handle_new_user`: Creates a profile when a new user signs up
+1. **Daily Reset Logic**:
+   - Uses date-based tracking (`last_refresh_date`)
+   - Ensures exactly one reset per day
+   - Respects subscription tiers and status
+   - Atomic operations with proper locking
 
-### Important Note on Triggers
+2. **Credit Allocation**:
+   - Ultra tier: 1000 credits daily
+   - Pro tier: 100 credits daily
+   - Free tier: 30 credits daily
 
-When a new user signs up, a trigger automatically creates a profile record for them with default subscription values (free tier, 30 credits).
+3. **Monitoring**:
+   The `credit_usage_summary` view provides real-time insights:
+   - Users per subscription tier
+   - Average credits remaining
+   - Min/max credits
+   - Number of users refreshed today
+
+4. **Performance Optimizations**:
+   - Proper indexes on frequently queried columns
+   - Efficient date-based tracking
+   - Atomic operations for credit management
+   - Request deduplication
 
 ## Contributing
 

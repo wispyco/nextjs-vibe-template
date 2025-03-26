@@ -86,9 +86,10 @@ We've created a `PaymentService` class that centralizes all payment-related oper
    - Better renewal and cancellation workflows
 
 2. **Credit System**:
-   - Improved credit purchase flow
-   - Better tracking of credit transactions
-   - Safe credit operations through database functions
+   - Date-based credit refresh tracking
+   - Exactly one refresh per day guarantee
+   - Atomic credit operations
+   - Comprehensive monitoring
 
 3. **Stripe Integration**:
    - Centralized Stripe client
@@ -98,9 +99,9 @@ We've created a `PaymentService` class that centralizes all payment-related oper
 
 4. **Database Structure**:
    - Type-safe subscription tier and status enums
-   - Better indices for performance
-   - Comprehensive audit trail with history tables
-   - Improved database functions for credit operations
+   - Optimized indices for performance
+   - Comprehensive audit trail
+   - Date-based credit tracking
 
 ### Usage Examples
 
@@ -132,6 +133,14 @@ import { PaymentService } from '@/lib/payment';
 
 // Cancel a subscription
 const { success, message } = await PaymentService.cancelSubscription(userId);
+
+// Check user credits
+const { 
+  current_credits,
+  subscription_tier,
+  next_refresh_date,
+  last_refresh_date
+} = await PaymentService.getUserCredits(userId);
 ```
 
 ## 📊 Database Schema Updates
@@ -141,17 +150,73 @@ We've made significant improvements to the database schema:
 1. **Type Safety**:
    - Added enums for subscription tiers (`free`, `pro`, `ultra`)
    - Added enums for subscription status (`active`, `past_due`, `canceled`, etc.)
+   - NOT NULL constraints on critical columns
 
-2. **New Tables**:
-   - `credit_purchases`: Records all credit purchases
-   - `subscription_history`: Tracks subscription changes over time
-   - `credit_history`: Complete audit trail of credit operations
+2. **Credit System Optimization**:
+   - Added `last_refresh_date` for precise date-based tracking
+   - Removed redundant columns (max_monthly_credits, last_credited_at)
+   - Added performance indices
+   - New monitoring view (`credit_usage_summary`)
 
-3. **New Database Functions**:
-   - `add_user_credits`: Safely add credits to a user
-   - `deduct_user_credits`: Safely deduct credits from a user
-   - `reset_daily_credits`: Daily credit reset function
-   - `initialize_user_credits`: Trigger for new profiles
+3. **Tables**:
+   - `profiles`: Core user data with credit and subscription info
+   - `subscription_history`: Tracks subscription changes
+   - `credit_history`: Audit trail of credit operations
+   - `credit_reset_logs`: Monitors reset operations
+
+4. **Credit Management Functions**:
+   - `reset_daily_credits()`: Once-per-day credit refresh
+   - `get_user_credits()`: Credit status with refresh dates
+   - `deduct_generation_credit()`: Atomic credit deduction
+
+## 🔍 Monitoring and Debugging
+
+The new `credit_usage_summary` view provides real-time insights:
+
+```sql
+SELECT * FROM credit_usage_summary;
+```
+
+Output includes:
+- Users per subscription tier
+- Average credits remaining
+- Min/max credits
+- Number of users refreshed today
+
+## 🚀 Migration Steps
+
+1. **Database Updates**:
+   ```bash
+   npm run db:schema
+   ```
+
+2. **Verify Credit System**:
+   ```sql
+   -- Check credit refresh status
+   SELECT * FROM credit_usage_summary;
+   
+   -- Verify user credits
+   SELECT * FROM get_user_credits('user-uuid');
+   ```
+
+3. **Monitor Logs**:
+   ```sql
+   -- Check reset operations
+   SELECT * FROM credit_reset_logs 
+   ORDER BY executed_at DESC LIMIT 5;
+   ```
+
+## 🔒 Security Improvements
+
+1. **Row Level Security**:
+   - Enhanced RLS policies on all tables
+   - Proper permission grants
+   - Audit trail protection
+
+2. **Credit Operations**:
+   - Atomic transactions
+   - Duplicate prevention
+   - Concurrent operation safety
 
 ## 🚀 How to Apply the Changes
 
@@ -170,13 +235,24 @@ We've made significant improvements to the database schema:
 
 ## ⚠️ Breaking Changes
 
-1. The subscription tier values are now lowercase (`free`, `pro`, `ultra`)
-2. The direct Stripe client import is replaced by PaymentService
-3. Supabase client creation is now centralized in AuthService
+1. Removed columns:
+   - `max_monthly_credits`
+   - `last_credited_at`
+   - `max_daily_credits`
+   - `style_index`
+
+2. New required columns:
+   - `last_refresh_date` in profiles
+   - NOT NULL constraints on critical columns
+
+3. Function changes:
+   - `reset_daily_credits`: New date-based implementation
+   - `get_user_credits`: New return structure with refresh dates
+   - Removed redundant credit management functions
 
 ## 🔍 Future Improvements
 
-1. Add more comprehensive unit and integration tests
-2. Implement subscription pausing/resuming
-3. Add usage analytics for better billing insights
-4. Consider multi-provider auth (GitHub, etc.) 
+1. Add comprehensive credit usage analytics
+2. Implement credit expiration system
+3. Add tiered pricing for credit purchases
+4. Enhanced monitoring and alerting 
