@@ -369,21 +369,6 @@ export default function Home() {
                         >
                           {numGenerations}
                         </motion.div>
-                        <input
-                          type="number"
-                          min={MIN_NUM_GENERATIONS}
-                          max={MAX_NUM_GENERATIONS}
-                          value={numGenerations}
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value, 10);
-                            if (!isNaN(value)) {
-                              const boundedValue = Math.min(MAX_NUM_GENERATIONS, Math.max(MIN_NUM_GENERATIONS, value));
-                              setNumGenerations(boundedValue);
-                            }
-                          }}
-                          className="w-16 bg-transparent text-center text-gray-300 text-xs border border-gray-700/50 rounded mt-1 focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50"
-                          title="Enter number of generations (1-99)"
-                        />
                       </div>
                       <motion.button
                         onClick={incrementGenerations}
