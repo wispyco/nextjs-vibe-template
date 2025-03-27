@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaMicrophone, FaBolt } from "react-icons/fa";
+import { FaMicrophone, FaBolt, FaMinus, FaPlus } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 import { SignupModal } from "@/components/SignupModal";
 import Image from "next/image";
+import { MIN_NUM_GENERATIONS, MAX_NUM_GENERATIONS } from "@/context/GenerationsContext";
 
 interface PromptInputProps {
   isOpen: boolean;
-  onSubmit: (prompt: string, isUpdate?: boolean, chaosMode?: boolean) => Promise<Record<string, unknown> | void> | void;
+  onSubmit: (prompt: string, isUpdate?: boolean, chaosMode?: boolean, customNumGenerations?: number) => Promise<Record<string, unknown> | void> | void;
   isUpdateMode?: boolean;
   numGenerations?: number;
   initialStyle?: string | null;
+  onNumGenerationsChange?: (num: number) => void;
 }
 
 export default function PromptInput({
@@ -20,11 +22,18 @@ export default function PromptInput({
   isUpdateMode = false,
   numGenerations = 1,
   initialStyle = null,
+  onNumGenerationsChange,
 }: PromptInputProps) {
   const [prompt, setPrompt] = useState("");
   const [chaosMode, setChaosMode] = useState(true);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [customNumGenerations, setCustomNumGenerations] = useState(numGenerations);
   const { theme } = useTheme();
+
+  // Update customNumGenerations when numGenerations prop changes
+  useEffect(() => {
+    setCustomNumGenerations(numGenerations);
+  }, [numGenerations]);
 
   // If initialStyle is provided, append it to the prompt placeholder
   const getPlaceholder = () => {
@@ -38,16 +47,49 @@ export default function PromptInput({
   const calculateCost = () => {
     // If in chaos mode, we're updating all generations
     // If in single mode, we're only updating one generation
-    return chaosMode ? numGenerations : 1;
+    return chaosMode ? customNumGenerations : 1;
+  };
+
+  // Handle increment/decrement of generations
+  const incrementGenerations = () => {
+    if (customNumGenerations < MAX_NUM_GENERATIONS) {
+      const newValue = customNumGenerations + 1;
+      setCustomNumGenerations(newValue);
+      if (onNumGenerationsChange) {
+        onNumGenerationsChange(newValue);
+      }
+    }
+  };
+
+  const decrementGenerations = () => {
+    if (customNumGenerations > MIN_NUM_GENERATIONS) {
+      const newValue = customNumGenerations - 1;
+      setCustomNumGenerations(newValue);
+      if (onNumGenerationsChange) {
+        onNumGenerationsChange(newValue);
+      }
+    }
+  };
+
+  // Handle direct input of generations
+  const handleGenerationsInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value)) {
+      const boundedValue = Math.min(MAX_NUM_GENERATIONS, Math.max(MIN_NUM_GENERATIONS, value));
+      setCustomNumGenerations(boundedValue);
+      if (onNumGenerationsChange) {
+        onNumGenerationsChange(boundedValue);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
       try {
-        const result = await onSubmit(prompt, isUpdateMode, chaosMode);
+        const result = await onSubmit(prompt, isUpdateMode, chaosMode, customNumGenerations);
         setPrompt("");
-        
+
         // If onSubmit returns a value with an error property
         if (result && typeof result === 'object' && 'error' in result) {
           if (result.error === 'rate_limit_exceeded') {
@@ -57,10 +99,10 @@ export default function PromptInput({
         }
       } catch (error: unknown) {
         console.error("Error submitting prompt:", error);
-        
+
         // Check for rate limit error in the caught exception
         const err = error as { error?: string, response?: { status: number }, message?: string };
-        if (err?.error === 'rate_limit_exceeded' || 
+        if (err?.error === 'rate_limit_exceeded' ||
             (err.response && err.response.status === 429) ||
             (err.message && err.message.includes('rate limit'))) {
           setShowSignupModal(true);
@@ -73,9 +115,9 @@ export default function PromptInput({
   return (
     <>
       {showSignupModal && (
-        <SignupModal 
-          isOpen={showSignupModal} 
-          onClose={() => setShowSignupModal(false)} 
+        <SignupModal
+          isOpen={showSignupModal}
+          onClose={() => setShowSignupModal(false)}
         />
       )}
       <motion.div
@@ -112,6 +154,37 @@ export default function PromptInput({
             />
           </div>
           <div className="flex gap-2 sm:flex-shrink-0">
+            {/* Number of generations control */}
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-800/50 border border-gray-700/50">
+              <button
+                type="button"
+                onClick={decrementGenerations}
+                disabled={customNumGenerations <= MIN_NUM_GENERATIONS}
+                className={`p-1 rounded ${customNumGenerations <= MIN_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
+                title="Decrease number of generations"
+              >
+                <FaMinus className="w-3 h-3 text-gray-400" />
+              </button>
+              <input
+                type="number"
+                min={MIN_NUM_GENERATIONS}
+                max={MAX_NUM_GENERATIONS}
+                value={customNumGenerations}
+                onChange={handleGenerationsInputChange}
+                className="w-10 bg-transparent text-center text-white text-sm border-none focus:ring-0 focus:outline-none"
+                title="Number of generations"
+              />
+              <button
+                type="button"
+                onClick={incrementGenerations}
+                disabled={customNumGenerations >= MAX_NUM_GENERATIONS}
+                className={`p-1 rounded ${customNumGenerations >= MAX_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
+                title="Increase number of generations"
+              >
+                <FaPlus className="w-3 h-3 text-gray-400" />
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => setChaosMode(!chaosMode)}

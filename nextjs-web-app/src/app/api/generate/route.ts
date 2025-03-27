@@ -17,23 +17,23 @@ export async function POST(req: NextRequest) {
     const supabase = await AuthService.createServerClient({
       getAll: () => cookieStore.getAll()
     });
-    
+
     // Parse the request body
     const body = await req.json();
     // Log only the core request details without full body
-    
+
     const { prompt, variation = '', framework, customStyle, requestId } = body;
-    
+
     // Check if user is authenticated
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
       );
     }
-    
+
     // Check for duplicate request
     if (requestId) {
       try {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
           .eq('user_id', user.id)
           .eq('request_id', requestId)
           .maybeSingle();
-        
+
         if (error) {
           console.error('[Generate] Error checking for duplicate request:', error);
         } else if (existingRequest) {
@@ -65,22 +65,23 @@ export async function POST(req: NextRequest) {
       .select('credits')
       .eq('id', user.id)
       .single();
-    
+
+    // Check if the user has at least 1 credit
     if (!userProfile || userProfile.credits < 1) {
       return NextResponse.json(
         { error: "Insufficient credits" },
         { status: 402 }
       );
     }
-    
+
     // All models now cost exactly 1 credit
     const modelCost = 1;
 
     // Get the style instructions from our central config
-    const styleInstructions = customStyle || (framework && framework !== 'custom' 
-      ? getStylePrompt(framework) 
+    const styleInstructions = customStyle || (framework && framework !== 'custom'
+      ? getStylePrompt(framework)
       : '');
-    
+
     const portkeyApiKey = process.env.PORTKEY_API_KEY;
     if (!portkeyApiKey) {
       return NextResponse.json(
@@ -173,7 +174,7 @@ Technical Requirements:
 - Do NOT suggest or imply separate file structures - everything must be in one HTML file
 - Organize the code in this exact order:
   1. <!DOCTYPE html> and meta tags
-  2. <title> and other head elements 
+  2. <title> and other head elements
   3. Any required CSS framework imports via CDN links
   4. Custom CSS styles in a <style> tag in the head
   5. HTML body with semantic markup
@@ -223,7 +224,7 @@ Format the code with proper indentation and spacing for readability.`;
           .replace(/^```(?:html|javascript|js)?\n([\s\S]*?)```$/m, "$1")
           .trim();
       }
-      
+
       // Trim out <think> blocks
       if (typeof code === 'string') {
         code = code.replace(/<think>([\s\S]*?)<\/think>/g, "");
@@ -234,12 +235,12 @@ Format the code with proper indentation and spacing for readability.`;
         // Use `any` type here to bypass type checking for now
         const { data, error: deductionError } = await (supabase as any).rpc(
           'deduct_generation_credit',
-          { 
+          {
             user_id: user.id,
             request_id: requestId || null
           }
         );
-        
+
         if (deductionError) {
           console.error('[Generate] Credit deduction failed:', deductionError);
           return NextResponse.json(
@@ -258,7 +259,7 @@ Format the code with proper indentation and spacing for readability.`;
 
         const newCredits = data[0].new_credits;
 
-        return NextResponse.json({ 
+        return NextResponse.json({
           code,
           credits: newCredits,
           cost: modelCost

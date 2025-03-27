@@ -2,9 +2,10 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
-// Define the default and minimum number of generations
+// Define the default, minimum, and maximum number of generations
 export const DEFAULT_NUM_GENERATIONS = 4;
 export const MIN_NUM_GENERATIONS = 1;
+export const MAX_NUM_GENERATIONS = 99;
 
 interface GenerationsContextType {
   numGenerations: number;
@@ -35,28 +36,28 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   }, [numGenerations]);
 
   const setNumGenerations = (num: number) => {
-    // Ensure the number is at least the minimum
-    const boundedNum = Math.max(MIN_NUM_GENERATIONS, num);
+    // Ensure the number is within the valid range (min to max)
+    const boundedNum = Math.min(MAX_NUM_GENERATIONS, Math.max(MIN_NUM_GENERATIONS, num));
     setNumGenerationsState(boundedNum);
   };
 
   const incrementGenerations = () => {
-    setNumGenerationsState(prev => prev + 1);
+    setNumGenerationsState(prev => prev < MAX_NUM_GENERATIONS ? prev + 1 : prev);
   };
 
   const decrementGenerations = () => {
-    setNumGenerationsState(prev => 
+    setNumGenerationsState(prev =>
       prev > MIN_NUM_GENERATIONS ? prev - 1 : prev
     );
   };
 
   return (
-    <GenerationsContext.Provider 
-      value={{ 
-        numGenerations, 
-        setNumGenerations, 
-        incrementGenerations, 
-        decrementGenerations 
+    <GenerationsContext.Provider
+      value={{
+        numGenerations,
+        setNumGenerations,
+        incrementGenerations,
+        decrementGenerations
       }}
     >
       {children}
@@ -70,4 +71,4 @@ export function useGenerations() {
     throw new Error("useGenerations must be used within a GenerationsProvider");
   }
   return context;
-} 
+}

@@ -6,6 +6,7 @@ import { HeroGeometric } from "@/components/ui/shape-landing-hero";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { SignupModal } from "@/components/SignupModal";
 import { FaPlus, FaMinus, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { MIN_NUM_GENERATIONS, MAX_NUM_GENERATIONS } from "@/context/GenerationsContext";
 import { AlertModal } from "@/components/AlertModal";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
@@ -21,7 +22,7 @@ import { useTheme } from "@/context/ThemeContext";
 export default function Home() {
   const router = useRouter();
   const { theme } = useTheme();
-  const { numGenerations, incrementGenerations, decrementGenerations } = useGenerations();
+  const { numGenerations, incrementGenerations, decrementGenerations, setNumGenerations } = useGenerations();
   const [styles, setStyles] = useState<string[]>(DEFAULT_STYLES.slice(0, numGenerations));
   const [customStyles, setCustomStyles] = useState<string[]>(
     Array(numGenerations).fill("")
@@ -50,24 +51,24 @@ export default function Home() {
 
   // Animated gradient positions
   const [gradientPosition, setGradientPosition] = useState(0);
-  
+
   // Check for user auth state on component mount
   useEffect(() => {
     const checkUser = async () => {
       try {
         // Use ApiClient instead of direct Supabase access
         const { data: userData, error } = await ApiClient.getCurrentUser();
-        
+
         if (error) {
           console.error("Error checking user:", error);
           return;
         }
-        
+
         // Update user session if user is logged in
         if (userData) {
           setUser(userData);
           setIsAuthenticated(true);
-          
+
           // Sync tokens with database
           await syncTokensWithDB();
         }
@@ -75,7 +76,7 @@ export default function Home() {
         console.error("Error in checkUser:", error);
       }
     };
-    
+
     checkUser();
   }, []);
 
@@ -90,7 +91,7 @@ export default function Home() {
           newStyles.push(DEFAULT_STYLES[i % DEFAULT_STYLES.length]);
         }
         return newStyles;
-      } 
+      }
       // If we need fewer styles
       else if (numGenerations < prev.length) {
         return prev.slice(0, numGenerations);
@@ -102,7 +103,7 @@ export default function Home() {
       // If we need more custom styles
       if (numGenerations > prev.length) {
         return [...prev, ...Array(numGenerations - prev.length).fill("")];
-      } 
+      }
       // If we need fewer custom styles
       else if (numGenerations < prev.length) {
         return prev.slice(0, numGenerations);
@@ -110,7 +111,7 @@ export default function Home() {
       return prev;
     });
   }, [numGenerations]);
-  
+
   // Animate the gradient
   useEffect(() => {
     const interval = setInterval(() => {
@@ -118,7 +119,7 @@ export default function Home() {
     }, 50);
     return () => clearInterval(interval);
   }, []);
-  
+
   // Gradient animation styles
   const gradientStyle = {
     backgroundSize: "200% 200%",
@@ -135,33 +136,33 @@ export default function Home() {
       const params = new URLSearchParams(window.location.search);
       const authRefresh = params.get('auth_refresh');
       const hardRefresh = params.get('hard_refresh');
-      
+
       // Remove the query parameters without refreshing the page
       const url = new URL(window.location.href);
       url.searchParams.delete('auth_refresh');
       url.searchParams.delete('hard_refresh');
       window.history.replaceState({}, document.title, url.toString());
-      
+
       // If hard refresh is requested, reload the page completely
       if (hardRefresh === 'true') {
         console.log("Hard refresh requested, reloading page");
         window.location.reload();
         return;
       }
-      
+
       if (authRefresh === 'true') {
         console.log("Auth refresh detected, updating UI");
-        
+
         // Force auth state check
         const checkUser = async () => {
           const { data: user } = await ApiClient.getCurrentUser();
           setUser(user);
-          
+
           if (user) {
             await syncTokensWithDB();
           }
         };
-        
+
         checkUser();
       }
     }
@@ -188,15 +189,15 @@ export default function Home() {
   // Function to sync tokens with the database
   const syncTokensWithDB = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await ApiClient.getUserCredits();
-      
+
       if (error) {
         console.error("Error syncing tokens with DB:", error);
         return;
       }
-      
+
       if (data !== null) {
         setAuthTokens(data);
       }
@@ -218,7 +219,7 @@ export default function Home() {
 
     setErrorMessage(null);
     setIsLoading(true);
-    
+
     try {
       console.log('handleSubmit: Making check-auth request');
       // Make a test request to check authentication and credits before redirecting
@@ -235,10 +236,10 @@ export default function Home() {
         status: response.status,
         ok: response.ok
       });
-      
+
       const responseData = await response.json();
       console.log('handleSubmit: Response data:', responseData);
-      
+
       if (response.status === 401) {
         console.log('handleSubmit: Authentication required');
         // Authentication required error
@@ -252,7 +253,7 @@ export default function Home() {
         setIsLoading(false);
         return;
       }
-      
+
       if (response.status === 402) {
         console.log('handleSubmit: Insufficient credits');
         // Insufficient credits error
@@ -271,7 +272,7 @@ export default function Home() {
         console.log('handleSubmit: Unexpected response status:', response.status);
         throw new Error(`Unexpected response: ${response.status}`);
       }
-      
+
       // After submission is complete, sync tokens with the database
       // to ensure the displayed token count is accurate
       if (user?.id) {
@@ -320,9 +321,9 @@ export default function Home() {
         />
       )}
       <div className="relative z-10">
-        <HeroGeometric 
-          badge="" 
-          title1="Chaos Coder" 
+        <HeroGeometric
+          badge=""
+          title1="Chaos Coder"
           title2={`${numGenerations}x Dev`}
         >
           <div className="w-full max-w-3xl mx-auto mb-10">
@@ -343,7 +344,7 @@ export default function Home() {
                              text-gray-200"
                     />
                   </div>
-                  
+
                   {/* Number of Websites Control */}
                   <div className="w-full md:w-48 p-3 bg-[#1a1f2e]/30 border border-[#2a3040] rounded-lg self-start h-32 flex flex-col justify-around">
                     <div className="text-sm bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 font-medium mb-2">
@@ -352,31 +353,50 @@ export default function Home() {
                     <div className="flex items-center justify-center">
                       <motion.button
                         onClick={decrementGenerations}
-                        className="p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] text-gray-400 hover:text-gray-200 shadow-md"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        disabled={numGenerations <= MIN_NUM_GENERATIONS}
+                        className={`p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] ${numGenerations <= MIN_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed text-gray-600' : 'text-gray-400 hover:text-gray-200'} shadow-md`}
+                        whileHover={numGenerations > MIN_NUM_GENERATIONS ? { scale: 1.05 } : undefined}
+                        whileTap={numGenerations > MIN_NUM_GENERATIONS ? { scale: 0.95 } : undefined}
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
                       >
                         <FaMinus className="w-3 h-3" />
                       </motion.button>
-                      <motion.div 
-                        className="mx-4 text-4xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-purple-300 to-rose-300 font-bold"
-                        key={numGenerations}
-                        initial={{ scale: 1.2, opacity: 0.7 }}
-                        animate={{ 
-                          scale: 1, 
-                          opacity: 1,
-                        }}
-                        transition={{ duration: 0.3 }}
-                        style={gradientStyle}
-                      >
-                        {numGenerations}
-                      </motion.div>
+                      <div className="mx-4 flex flex-col items-center">
+                        <motion.div
+                          className="text-4xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-purple-300 to-rose-300 font-bold"
+                          key={numGenerations}
+                          initial={{ scale: 1.2, opacity: 0.7 }}
+                          animate={{
+                            scale: 1,
+                            opacity: 1,
+                          }}
+                          transition={{ duration: 0.3 }}
+                          style={gradientStyle}
+                        >
+                          {numGenerations}
+                        </motion.div>
+                        <input
+                          type="number"
+                          min={MIN_NUM_GENERATIONS}
+                          max={MAX_NUM_GENERATIONS}
+                          value={numGenerations}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value, 10);
+                            if (!isNaN(value)) {
+                              const boundedValue = Math.min(MAX_NUM_GENERATIONS, Math.max(MIN_NUM_GENERATIONS, value));
+                              setNumGenerations(boundedValue);
+                            }
+                          }}
+                          className="w-16 bg-transparent text-center text-gray-300 text-xs border border-gray-700/50 rounded mt-1 focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50"
+                          title="Enter number of generations (1-99)"
+                        />
+                      </div>
                       <motion.button
                         onClick={incrementGenerations}
-                        className="p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] text-gray-400 hover:text-gray-200 shadow-md"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        disabled={numGenerations >= MAX_NUM_GENERATIONS}
+                        className={`p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] ${numGenerations >= MAX_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed text-gray-600' : 'text-gray-400 hover:text-gray-200'} shadow-md`}
+                        whileHover={numGenerations < MAX_NUM_GENERATIONS ? { scale: 1.05 } : undefined}
+                        whileTap={numGenerations < MAX_NUM_GENERATIONS ? { scale: 0.95 } : undefined}
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
                       >
                         <FaPlus className="w-3 h-3" />
@@ -426,7 +446,7 @@ export default function Home() {
 
                 {/* Collapsible Style Settings */}
                 <div className="mb-4 mt-4">
-                  <button 
+                  <button
                     onClick={() => setIsStyleSettingsExpanded(!isStyleSettingsExpanded)}
                     className="w-full p-3 bg-[#1a1f2e]/30 border border-[#2a3040] rounded-lg flex justify-between items-center"
                   >
@@ -439,7 +459,7 @@ export default function Home() {
                       <FaChevronDown className="text-gray-400" />
                     )}
                   </button>
-                  
+
                   <AnimatePresence>
                     {isStyleSettingsExpanded && (
                       <motion.div
@@ -452,8 +472,8 @@ export default function Home() {
                         <div className="p-4 mt-2 bg-[#1a1f2e]/30 border border-[#2a3040] rounded-lg">
                           <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                             {Array.from({ length: numGenerations }).map((_, index) => (
-                              <motion.div 
-                                key={`settings-${index}`} 
+                              <motion.div
+                                key={`settings-${index}`}
                                 className="flex gap-2 p-2 bg-[#1a1f2e]/50 rounded-lg"
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -462,7 +482,7 @@ export default function Home() {
                                 <div className="flex-none text-xs text-gray-400 font-semibold pt-2 w-16">
                                   Site {index + 1}:
                                 </div>
-                                
+
                                 {/* Style Selection */}
                                 <div className="flex-1">
                                   <select
@@ -477,7 +497,7 @@ export default function Home() {
                                     ))}
                                   </select>
                                 </div>
-                                
+
                                 {/* Custom Style Input */}
                                 {styles[index] === "custom" && (
                                   <div className="flex-1">

@@ -13,9 +13,9 @@ import VoiceInput from "@/components/DevTools/VoiceInput";
 import { SignupModal } from "@/components/SignupModal";
 import { AlertModal } from "@/components/AlertModal";
 import { useAuth } from "@/context/AuthContext";
-import { 
-  DEFAULT_STYLES, 
-  isPredefinedStyle, 
+import {
+  DEFAULT_STYLES,
+  isPredefinedStyle,
   getStyleDisplayNames
 } from "@/config/styles";
 import AppTile from "@/components/AppTile";
@@ -25,7 +25,7 @@ function ResultsContent() {
   const searchParams = useSearchParams();
   const promptParam = searchParams.get('prompt') || '';
   const { numGenerations: contextNumGenerations } = useGenerations();
-  
+
   // Parse the configuration
   const configParam = searchParams.get('config') || '';
   const defaultConfig = {
@@ -33,7 +33,7 @@ function ResultsContent() {
     modelTypes: Array(contextNumGenerations).fill(0).map((_, index) => index % 2 === 0 ? "pro" : "fast"),
     styles: DEFAULT_STYLES.slice(0, contextNumGenerations)
   };
-  
+
   let config;
   try {
     config = configParam ? JSON.parse(decodeURIComponent(configParam)) : defaultConfig;
@@ -41,11 +41,11 @@ function ResultsContent() {
     console.error("Failed to parse config:", e);
     config = defaultConfig;
   }
-  
+
   // If we still have old config with vibes, convert it to styles
   const styles = config.styles || config.vibes || defaultConfig.styles;
   const { numGenerations, modelTypes = defaultConfig.modelTypes } = config;
-  
+
   const [loadingStates, setLoadingStates] = useState<boolean[]>(
     new Array(numGenerations).fill(true)
   );
@@ -77,10 +77,10 @@ function ResultsContent() {
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const { theme } = useTheme();
   const { setTokens } = useAuth();
-  
+
   // Track in-flight requests to prevent duplicates
   const pendingRequests = useRef<Set<string>>(new Set());
-  
+
   // Reference for animation
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -121,28 +121,28 @@ function ResultsContent() {
     try {
       // Use the style from config instead of predefined frameworks
       const style = styles[index] || DEFAULT_STYLES[index % DEFAULT_STYLES.length] || DEFAULT_STYLES[0]; // Use corresponding default style or first as fallback
-      
+
       // Determine if this is a custom style using our central helper
       const isCustomStyle = !isPredefinedStyle(style);
-      
+
       // Get the model type for this specific generation
       const modelType = modelTypes[index] || "fast";
 
       // Create a unique request signature to prevent duplicate requests
       const requestSignature = `${promptText}:${style}:${modelType}:${variations[index] || ''}:${index}`;
-      
+
       // Skip if this exact request is already in progress
       if (pendingRequests.current.has(requestSignature)) {
         console.log(`Skipping duplicate request: ${requestSignature}`);
         return;
       }
-      
+
       // Mark this request as in progress
       pendingRequests.current.add(requestSignature);
 
       // Generate a unique request ID
       const requestId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-      
+
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -155,7 +155,7 @@ function ResultsContent() {
           requestId
         }),
       });
-      
+
       // Remove from pending requests when done
       pendingRequests.current.delete(requestSignature);
 
@@ -175,7 +175,7 @@ function ResultsContent() {
       if (!response.ok) {
         const errorMessage = data?.error || 'An unknown error occurred';
         const errorDetails = data?.details ? `: ${data.details}` : '';
-        
+
         if (response.status === 401) {
           // Authentication required error
           setAlertInfo({
@@ -186,7 +186,7 @@ function ResultsContent() {
           setShowAlertModal(true);
           return;
         }
-        
+
         if (response.status === 402) {
           // Insufficient credits error
           setAlertInfo({
@@ -203,13 +203,13 @@ function ResultsContent() {
           setShowSignupModal(true);
           throw new Error("Rate limit exceeded. Please create an account to continue.");
         }
-        
+
         if (response.status === 500 && errorMessage.includes('deduct credits')) {
           console.error(`Credit deduction failed: ${errorMessage}${errorDetails}`);
           setError(`Credit deduction failed: ${errorMessage}${errorDetails}. Please try again or contact support.`);
           return;
         }
-        
+
         throw new Error(`${errorMessage}${errorDetails}`);
       }
 
@@ -249,21 +249,24 @@ function ResultsContent() {
     }
   };
 
-  const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false) => {
+  const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false, customNumGenerations?: number) => {
     if (isUpdate) {
       if (chaosMode) {
+        // Get the number of generations to update (either from custom input or current config)
+        const numToUpdate = customNumGenerations || numGenerations;
+
         // Update all apps in chaos mode
-        setLoadingStates(new Array(6).fill(true));
-        
+        setLoadingStates(new Array(numToUpdate).fill(true));
+
         try {
           // Create an array of promises for all apps
-          const updatePromises = appTitles.map(async (title: string, index: number) => {
+          const updatePromises = appTitles.slice(0, numToUpdate).map(async (title: string, index: number) => {
             // Use the style directly from the styles array
             const style = styles[index];
-            
+
             // Check if this is a custom style using our central helper
             const isCustomStyle = !isPredefinedStyle(style);
-            
+
             const response = await fetch("/api/generate", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -276,33 +279,33 @@ function ResultsContent() {
                 model: modelTypes[index] || "fast",
               }),
             });
-            
+
             if (response.status === 401) {
               // Authentication required error
               throw { status: 401, message: "Authentication required" };
             }
-            
+
             if (response.status === 402) {
               // Insufficient credits error
               throw { status: 402, message: "Insufficient credits" };
             }
-            
+
             if (response.status === 429) {
               // Rate limit error
               throw { status: 429, message: "Rate limit exceeded" };
             }
-            
+
             if (!response.ok) {
               throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             return { index, data };
           });
-          
+
           // Wait for all promises to resolve
           const results = await Promise.all(updatePromises);
-          
+
           // Update the results state with the new data
           results.forEach(({ index, data }) => {
             setResults((prev) => {
@@ -310,7 +313,7 @@ function ResultsContent() {
               newResults[index] = data.code;
               return newResults;
             });
-            
+
             setEditedResults((prev) => {
               const newResults = [...prev];
               newResults[index] = data.code;
@@ -325,11 +328,11 @@ function ResultsContent() {
           });
         } catch (error: unknown) {
           console.error("Error updating apps:", error);
-          
+
           // Check if error is an object with status property
           if (error && typeof error === 'object' && 'status' in error) {
             const statusError = error as { status: number; message?: string };
-            
+
             if (statusError.status === 401) {
               setAlertInfo({
                 title: "Authentication Required",
@@ -351,7 +354,7 @@ function ResultsContent() {
             setError("Failed to update apps. Please try again.");
           }
         } finally {
-          setLoadingStates(new Array(6).fill(false));
+          setLoadingStates(new Array(numToUpdate).fill(false));
         }
       } else {
         // Update only the selected app
@@ -360,14 +363,14 @@ function ResultsContent() {
           newStates[selectedAppIndex] = true;
           return newStates;
         });
-        
+
         try {
           // Use the style directly from the styles array
           const style = styles[selectedAppIndex];
-          
+
           // Check if this is a custom style using our central helper
           const isCustomStyle = !isPredefinedStyle(style);
-          
+
           const response = await fetch("/api/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -380,7 +383,7 @@ function ResultsContent() {
               model: modelTypes[selectedAppIndex] || "fast",
             }),
           });
-          
+
           if (response.status === 401) {
             // Authentication required error
             setAlertInfo({
@@ -391,7 +394,7 @@ function ResultsContent() {
             setShowAlertModal(true);
             return;
           }
-          
+
           if (response.status === 402) {
             // Insufficient credits error
             setAlertInfo({
@@ -402,25 +405,25 @@ function ResultsContent() {
             setShowAlertModal(true);
             return;
           }
-          
+
           if (response.status === 429) {
             // Show signup modal for rate limit
             setShowSignupModal(true);
             throw new Error("Rate limit exceeded. Please create an account to continue.");
           }
-          
+
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
-          
+
           const data = await response.json();
-          
+
           setResults((prev) => {
             const newResults = [...prev];
             newResults[selectedAppIndex] = data.code;
             return newResults;
           });
-          
+
           setEditedResults((prev) => {
             const newResults = [...prev];
             newResults[selectedAppIndex] = data.code;
@@ -448,10 +451,10 @@ function ResultsContent() {
       // For new generation, use the selected style if available
       const styleToUse = selectedStyle || DEFAULT_STYLES[0];
       const isCustomStyle = !isPredefinedStyle(styleToUse);
-      
+
       // Add a new loading state
       setLoadingStates((prev) => [...prev, true]);
-      
+
       try {
         const response = await fetch("/api/generate", {
           method: "POST",
@@ -463,7 +466,7 @@ function ResultsContent() {
             model: "fast", // Default to fast model for new generations
           }),
         });
-        
+
         if (response.status === 401) {
           // Authentication required error
           setAlertInfo({
@@ -472,12 +475,12 @@ function ResultsContent() {
             type: 'auth'
           });
           setShowAlertModal(true);
-          
+
           // Remove the loading state we just added
           setLoadingStates((prev) => prev.slice(0, -1));
           return;
         }
-        
+
         if (response.status === 402) {
           // Insufficient credits error
           setAlertInfo({
@@ -486,37 +489,37 @@ function ResultsContent() {
             type: 'credits'
           });
           setShowAlertModal(true);
-          
+
           // Remove the loading state we just added
           setLoadingStates((prev) => prev.slice(0, -1));
           return;
         }
-        
+
         if (response.status === 429) {
           // Show signup modal for rate limit
           setShowSignupModal(true);
-          
+
           // Remove the loading state we just added
           setLoadingStates((prev) => prev.slice(0, -1));
           throw new Error("Rate limit exceeded. Please create an account to continue.");
         }
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Add the new result
         setResults((prev) => [...prev, data.code]);
         setEditedResults((prev) => [...prev, data.code]);
-        
+
         // Add the style to the styles array
         styles.push(styleToUse);
-        
+
         // Select the new app
         setSelectedAppIndex(results.length);
-        
+
         // Reset selected style after generation
         setSelectedStyle(null);
 
@@ -525,11 +528,11 @@ function ResultsContent() {
           setRemainingCredits(data.credits);
           setTokens(data.credits);
         }
-        
+
       } catch (error) {
         console.error("Error generating new app:", error);
         setError("Failed to generate new app. Please try again.");
-        
+
         // Remove the loading state we just added
         setLoadingStates((prev) => prev.slice(0, -1));
       } finally {
@@ -541,7 +544,7 @@ function ResultsContent() {
         });
       }
     }
-    
+
     // Close the prompt input
     setIsPromptOpen(false);
   };
@@ -567,13 +570,15 @@ function ResultsContent() {
     // Generate apps in parallel with a small delay between each to avoid overwhelming the server
     // This creates a staggered loading effect that feels more responsive
     const generateAppsWithStagger = async () => {
-      const batchSize = 6; // Process in batches of 3 for better performance
-      const delay = 100; // 500ms delay between batches
-      
+      const batchSize = 6; // Process in batches for better performance
+      const delay = 100; // Small delay between batches
+
+      // Ensure we're generating the correct number of apps based on the config
+      // This allows for any number from 1-99 as specified in the requirements
       for (let batch = 0; batch < Math.ceil(numGenerations / batchSize); batch++) {
         const startIdx = batch * batchSize;
         const endIdx = Math.min(startIdx + batchSize, numGenerations);
-        
+
         // Generate this batch in parallel
         await Promise.all(
           Array.from({ length: endIdx - startIdx }).map((_, i) => {
@@ -581,14 +586,14 @@ function ResultsContent() {
             return generateApp(index, promptParam);
           })
         );
-        
+
         // Small delay before next batch if not the last batch
         if (batch < Math.ceil(numGenerations / batchSize) - 1) {
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     };
-    
+
     generateAppsWithStagger();
   }, [promptParam, numGenerations]);
 
@@ -610,22 +615,22 @@ function ResultsContent() {
     const newLoadingStates = [...loadingStates];
     newLoadingStates.splice(index, 1);
     setLoadingStates(newLoadingStates);
-    
+
     const newResults = [...results];
     newResults.splice(index, 1);
     setResults(newResults);
-    
+
     const newEditedResults = [...editedResults];
     newEditedResults.splice(index, 1);
     setEditedResults(newEditedResults);
-    
+
     // Update styles array to keep appTitles in sync
     const newStyles = [...styles];
     newStyles.splice(index, 1);
     // We need to update the styles variable directly since it's derived from config
     // This ensures appTitles will be regenerated correctly
     styles.splice(index, 1);
-    
+
     // Update model types if they exist
     if (modelTypes) {
       const newModelTypes = [...modelTypes];
@@ -633,7 +638,7 @@ function ResultsContent() {
       // Update modelTypes in a similar way to styles
       modelTypes.splice(index, 1);
     }
-    
+
     // Update generation times if they exist for this index
     if (generationTimes[index]) {
       const newGenerationTimes = { ...generationTimes };
@@ -650,12 +655,12 @@ function ResultsContent() {
       });
       setGenerationTimes(reindexedTimes);
     }
-    
+
     // Update selected index if needed
     if (selectedAppIndex >= index && selectedAppIndex > 0) {
       setSelectedAppIndex(selectedAppIndex - 1);
     }
-    
+
     // If the expanded app is being deleted, collapse it
     if (expandedAppIndex === index) {
       setExpandedAppIndex(null);
@@ -728,7 +733,7 @@ function ResultsContent() {
           {results.length > 0 && (
             <div className="h-[calc(100vh-10rem)] overflow-y-auto" ref={containerRef}>
               {/* Remove the detailed view at the top since we'll show expanded tiles in the grid */}
-              
+
               {/* Grid of all app previews */}
               <AnimatePresence>
                 <motion.h2
@@ -779,7 +784,7 @@ function ResultsContent() {
       {isVoiceEnabled && (
         <VoiceInput onInput={(text) => handleVoiceInput(text)} theme={theme} />
       )}
-      
+
       <PromptInput
         isOpen={isPromptOpen}
         onSubmit={handleNewPrompt}
@@ -787,14 +792,21 @@ function ResultsContent() {
         model={modelTypes[selectedAppIndex] || "fast"}
         numGenerations={numGenerations}
         initialStyle={selectedStyle}
+        onNumGenerationsChange={(num) => {
+          // Update the local state for numGenerations
+          // This doesn't change the context value, just the local config
+          if (config) {
+            config.numGenerations = num;
+          }
+        }}
       />
-      
+
       <PerformanceMetrics
         isOpen={isMetricsOpen}
         onClose={() => setIsMetricsOpen(false)}
         generationTimes={generationTimes}
       />
-      
+
       {/* Credit Alert */}
       {remainingCredits !== null && remainingCredits < 10 && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
@@ -808,7 +820,7 @@ function ResultsContent() {
               <p className="font-medium">Low Credits Alert</p>
               <p className="text-sm">You have {remainingCredits} credits remaining. Visit settings to purchase more.</p>
             </div>
-            <button 
+            <button
               onClick={() => setShowAlertModal(true)}
               className="ml-auto text-sm hover:underline"
             >
@@ -833,15 +845,15 @@ export default function Results() {
             <div className="absolute top-0 left-0 w-20 h-20 border-[3px] border-transparent border-r-indigo-400/70 rounded-full animate-spin animate-[spin_1.5s_linear_infinite_0.2s]"></div>
             <div className="absolute top-[3px] left-[3px] w-[74px] h-[74px] border-[3px] border-transparent border-b-purple-400/60 rounded-full animate-spin animate-[spin_2s_linear_infinite_0.3s] origin-center"></div>
             <div className="absolute top-[6px] left-[6px] w-[68px] h-[68px] border-[3px] border-transparent border-l-rose-400/50 rounded-full animate-spin animate-[spin_2.5s_linear_infinite_0.4s] origin-center"></div>
-            
+
             {/* Pulsing dot in the center */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-pulse"></div>
           </div>
-          
+
           <h2 className="text-xl font-semibold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
             Loading Your Designs
           </h2>
-          
+
           <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">
             Preparing your web applications...
           </p>
