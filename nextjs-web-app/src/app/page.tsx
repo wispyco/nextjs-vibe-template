@@ -145,13 +145,13 @@ export default function Home() {
 
       // If hard refresh is requested, reload the page completely
       if (hardRefresh === 'true') {
-        console.log("Hard refresh requested, reloading page");
+        // Hard refresh requested
         window.location.reload();
         return;
       }
 
       if (authRefresh === 'true') {
-        console.log("Auth refresh detected, updating UI");
+        // Auth refresh detected
 
         // Force auth state check
         const checkUser = async () => {
@@ -212,16 +212,13 @@ export default function Home() {
       return;
     }
 
-    console.log('handleSubmit: Starting submission with:', {
-      promptLength: prompt.length,
-      numGenerations
-    });
+    // Start submission process
 
     setErrorMessage(null);
     setIsLoading(true);
 
     try {
-      console.log('handleSubmit: Making check-auth request');
+      // Check auth before proceeding
       // Make a test request to check authentication and credits before redirecting
       const response = await fetch("/api/check-auth", {
         method: "POST",
@@ -232,16 +229,13 @@ export default function Home() {
         }),
       });
 
-      console.log('handleSubmit: Received response:', {
-        status: response.status,
-        ok: response.ok
-      });
+
 
       const responseData = await response.json();
-      console.log('handleSubmit: Response data:', responseData);
+
 
       if (response.status === 401) {
-        console.log('handleSubmit: Authentication required');
+
         // Authentication required error
         setAlertInfo({
           title: "Authentication Required",
@@ -255,7 +249,7 @@ export default function Home() {
       }
 
       if (response.status === 402) {
-        console.log('handleSubmit: Insufficient credits');
+
         // Insufficient credits error
         setAlertInfo({
           title: "Insufficient Credits",
@@ -269,18 +263,18 @@ export default function Home() {
       }
 
       if (!response.ok) {
-        console.log('handleSubmit: Unexpected response status:', response.status);
+
         throw new Error(`Unexpected response: ${response.status}`);
       }
 
       // After submission is complete, sync tokens with the database
       // to ensure the displayed token count is accurate
       if (user?.id) {
-        console.log('handleSubmit: Syncing tokens with database');
+
         await syncTokensWithDB();
       }
 
-      console.log('handleSubmit: Preparing navigation to results page');
+
       const encodedPrompt = encodeURIComponent(prompt);
       const encodedConfig = encodeURIComponent(
         JSON.stringify({
@@ -291,7 +285,7 @@ export default function Home() {
         })
       );
 
-      console.log('handleSubmit: Navigating to results page');
+
       router.push(`/results?prompt=${encodedPrompt}&config=${encodedConfig}`);
     } catch (error) {
       console.error('handleSubmit: Error occurred:', error);

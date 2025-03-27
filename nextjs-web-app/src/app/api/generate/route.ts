@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         if (error) {
           console.error('[Generate] Error checking for duplicate request:', error);
         } else if (existingRequest) {
-          console.log('[Generate] Duplicate request detected:', requestId);
+          // Duplicate request detected
           return NextResponse.json(
             { error: "Duplicate request" },
             { status: 409 }

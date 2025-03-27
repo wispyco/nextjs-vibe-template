@@ -32,7 +32,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    console.log('POST /api/check-auth: Starting request');
+
 
     // Create a server client with cookies
     const cookieStore = await cookies();
@@ -59,14 +59,14 @@ export async function POST(request: Request) {
       }
     );
 
-    console.log('POST /api/check-auth: Supabase client created');
+
 
     // Get the current user from the request cookies
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    console.log('POST /api/check-auth: Auth check result:', { user: !!user, error: authError });
+
 
     if (authError || !user) {
-      console.log('POST /api/check-auth: No authenticated user found');
+
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
@@ -77,11 +77,7 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .single();
 
-    console.log('POST /api/check-auth: Profile check result:', {
-      profile: profile ? 'found' : 'not found',
-      credits: profile?.credits,
-      error: profileError
-    });
+
 
     if (profileError || !profile) {
       console.error('POST /api/check-auth: Error fetching user profile:', profileError);
@@ -95,14 +91,10 @@ export async function POST(request: Request) {
     // Ensure numGenerations is within valid range (1-99)
     numGenerations = Math.min(99, Math.max(1, numGenerations));
 
-    console.log('POST /api/check-auth: Credit check:', {
-      required: numGenerations,
-      available: profile.credits,
-      sufficient: (profile.credits as number) >= numGenerations
-    });
+
 
     if ((profile.credits as number) < numGenerations) {
-      console.log('POST /api/check-auth: Insufficient credits');
+
       return NextResponse.json({
         error: 'Insufficient credits',
         required: numGenerations,
@@ -110,7 +102,7 @@ export async function POST(request: Request) {
       }, { status: 402 });
     }
 
-    console.log('POST /api/check-auth: Success, returning response');
+
     return NextResponse.json({
       success: true,
       credits: profile.credits,

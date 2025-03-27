@@ -133,7 +133,7 @@ function ResultsContent() {
 
       // Skip if this exact request is already in progress
       if (pendingRequests.current.has(requestSignature)) {
-        console.log(`Skipping duplicate request: ${requestSignature}`);
+        // Skip duplicate request
         return;
       }
 
@@ -160,7 +160,7 @@ function ResultsContent() {
       pendingRequests.current.delete(requestSignature);
 
       if (response.status === 409) {
-        console.log('Duplicate request detected, skipping...');
+        // Duplicate request detected
         return;
       }
 
