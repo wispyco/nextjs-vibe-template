@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { user, tokens, setTokens, syncTokensWithDB, isLoading } = useAuth();
+  const { user, tokens, setTokens, syncTokensWithDB, refreshCredits, isLoading } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +121,7 @@ export default function DashboardPage() {
     }
   }, [setLoading, setError, setTokens, setSubscriptionTier, setSubscriptionStatus, syncTokensWithDB]);
 
-  // Function to refresh user profile
+  // Function to refresh user profile and credits
   const refreshUserProfile = useCallback(async () => {
     if (isLoadingProfile.current) {
       console.log("🚫 Skipping profile refresh - already loading");
@@ -132,6 +132,10 @@ export default function DashboardPage() {
       isLoadingProfile.current = true;
       setLoading(true);
 
+      // First, refresh credits (this will only happen once per 24 hours)
+      await refreshCredits();
+
+      // Then get the latest profile data
       const { data: profileData, error: profileError } = await ApiClient.getUserProfile();
 
       if (profileError) {
@@ -152,7 +156,7 @@ export default function DashboardPage() {
       isLoadingProfile.current = false;
       setLoading(false);
     }
-  }, [setLoading, setError, updateStateFromProfile, setSuccessMessage]);
+  }, [setLoading, setError, updateStateFromProfile, setSuccessMessage, refreshCredits]);
 
   // Update refs when values change
   useEffect(() => {

@@ -20,18 +20,23 @@ export function getBaseCreditsForTier(tier: string): number {
  * Check if a user's credits need to be refreshed and update them if necessary
  * This function is called on key API endpoints to ensure users always have their daily credits
  * without requiring a cron job
+ *
+ * Credits are refreshed ONLY once per 24-hour period per user, specifically when:
+ * 1. The user has never had a refresh before (new user), OR
+ * 2. It has been at least 24 hours since the last refresh
+ *
+ * Note: Credits are NOT refreshed just because they fall below the base amount.
+ * Users must wait for the 24-hour period to elapse before getting new credits.
  */
 export async function checkAndRefreshCredits(
   supabase: SupabaseClient,
   userId: string
 ): Promise<{ credits: number; refreshed: boolean }> {
   try {
-    // Get the current date in YYYY-MM-DD format for comparison
-    const today = new Date().toISOString().split('T')[0];
+    console.log(`[Credits] Checking refresh eligibility for user ${userId}`);
 
     // Use a transaction to ensure atomicity and prevent race conditions
-    // This is done by using RPC to call a database function that handles the refresh logic
-    // First, check if refresh is needed using a SELECT FOR UPDATE to lock the row
+    // First, check if refresh is needed using a SELECT to get the current profile
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('id, credits, subscription_tier, last_credit_refresh')
@@ -39,27 +44,55 @@ export async function checkAndRefreshCredits(
       .single();
 
     if (error) {
-      console.error('Error fetching user profile:', error);
+      console.error(`[Credits] Error fetching user profile for ${userId}:`, error);
       return { credits: 0, refreshed: false };
     }
 
     // If the profile doesn't exist, return early
     if (!profile) {
+      console.log(`[Credits] No profile found for user ${userId}`);
       return { credits: 0, refreshed: false };
     }
 
     // Get the base credits for the user's tier
     const baseCredits = getBaseCreditsForTier(profile.subscription_tier || 'free');
 
-    // Check if we need to refresh
-    // Refresh if credits are below base amount OR last refresh was not today
-    const lastRefreshDate = profile.last_credit_refresh ?
-      new Date(profile.last_credit_refresh).toISOString().split('T')[0] : null;
+    // Get current time and last refresh time
+    const now = new Date();
+    const lastRefreshTime = profile.last_credit_refresh ? new Date(profile.last_credit_refresh) : null;
 
-    const shouldRefresh =
-      profile.credits < baseCredits ||
-      !lastRefreshDate ||
-      lastRefreshDate !== today;
+    // Calculate time difference in hours since last refresh
+    const hoursSinceLastRefresh = lastRefreshTime ?
+      (now.getTime() - lastRefreshTime.getTime()) / (1000 * 60 * 60) :
+      null;
+
+    // Check individual refresh conditions
+    const creditsBelowBase = profile.credits < baseCredits;
+    const noLastRefresh = !lastRefreshTime;
+    const pastRefreshWindow = hoursSinceLastRefresh !== null && hoursSinceLastRefresh >= 24;
+
+    // Determine if we should refresh based on conditions
+    // Refresh ONLY if:
+    // 1. No previous refresh has happened (new user), OR
+    // 2. Last refresh was more than 24 hours ago
+    //
+    // Note: We no longer refresh just because credits are below base amount
+    // This ensures refreshes happen at most once per 24 hours
+    const shouldRefresh = noLastRefresh || pastRefreshWindow;
+
+    // Log the refresh decision details with individual conditions
+    console.log(`[Credits] Refresh decision for user ${userId}:`, {
+      currentCredits: profile.credits,
+      baseCredits,
+      lastRefreshTime: lastRefreshTime?.toISOString() || 'never',
+      hoursSinceLastRefresh: hoursSinceLastRefresh !== null ? hoursSinceLastRefresh.toFixed(2) : 'N/A',
+      conditions: {
+        creditsBelowBase,
+        noLastRefresh,
+        pastRefreshWindow
+      },
+      shouldRefresh
+    });
 
     if (shouldRefresh) {
       try {
@@ -69,7 +102,7 @@ export async function checkAndRefreshCredits(
           .from('profiles')
           .update({
             credits: baseCredits,
-            last_credit_refresh: new Date().toISOString()
+            last_credit_refresh: now.toISOString()
           })
           .eq('id', userId)
           .eq('last_credit_refresh', profile.last_credit_refresh) // Optimistic concurrency control
@@ -77,7 +110,7 @@ export async function checkAndRefreshCredits(
           .single();
 
         if (updateError) {
-          console.error('Error updating credits:', updateError);
+          console.error(`[Credits] Error updating credits for user ${userId}:`, updateError);
           // If update failed due to concurrency, get the latest profile
           const { data: latestProfile } = await supabase
             .from('profiles')
@@ -85,11 +118,14 @@ export async function checkAndRefreshCredits(
             .eq('id', userId)
             .single();
 
+          console.log(`[Credits] Concurrent update detected for user ${userId}, using latest profile`);
           return {
             credits: latestProfile?.credits || profile.credits,
             refreshed: false
           };
         }
+
+        console.log(`[Credits] Successfully refreshed credits for user ${userId} to ${baseCredits}`);
 
         // Add entry to credit history table for audit trail
         await supabase
@@ -106,18 +142,19 @@ export async function checkAndRefreshCredits(
           refreshed: true
         };
       } catch (err) {
-        console.error('Error refreshing credits:', err);
+        console.error(`[Credits] Error refreshing credits for user ${userId}:`, err);
         return { credits: profile.credits, refreshed: false };
       }
     }
 
     // No refresh needed
+    console.log(`[Credits] No refresh needed for user ${userId}`);
     return {
       credits: profile.credits,
       refreshed: false
     };
   } catch (err) {
-    console.error('Error in checkAndRefreshCredits:', err);
+    console.error(`[Credits] Unexpected error in checkAndRefreshCredits for user ${userId}:`, err);
     return { credits: 0, refreshed: false };
   }
 }

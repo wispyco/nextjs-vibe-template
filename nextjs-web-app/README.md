@@ -148,4 +148,53 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## Documentation
 
 - [Database Schema](./docs/DATABASE.md) - Comprehensive documentation of the database schema, including tables, relationships, and access patterns.
-```
+
+## Credit System
+
+### Credit Refresh Mechanism
+
+Credits are refreshed through user interaction with the API, with the following constraints:
+
+1. **Once Per 24 Hours**: Credits are refreshed at most once per 24-hour period per user.
+2. **Centralized Refresh Logic**: All credit refreshes happen through a single endpoint (`/api/auth/user`) to prevent multiple refreshes.
+3. **Explicit Refresh Method**: The frontend uses `ApiClient.refreshUserCredits()` to explicitly trigger credit refreshes when needed.
+
+#### How It Works
+
+1. **Credit Refresh Check**:
+   - The `checkAndRefreshCredits` function in `src/lib/credits.ts` checks if a user's credits need to be refreshed
+   - Refresh happens ONLY if:
+     - No previous refresh has happened (new user), OR
+     - Last refresh was more than 24 hours ago
+   - Credits are NOT refreshed just because they fall below the base amount
+
+2. **Frontend Implementation**:
+   - `ApiClient.refreshUserCredits()` - Explicitly triggers a credit refresh (if needed)
+   - `ApiClient.getUserCredits()` - Gets credits without triggering a refresh
+   - `useAuth().refreshCredits()` - React hook method to refresh credits
+
+3. **When Credits Are Refreshed**:
+   - On initial app load/login
+   - When the user explicitly refreshes their profile in the dashboard
+   - Not on every API call or page load
+
+#### Credit Amounts by Tier
+
+| Tier  | Daily Credits |
+|-------|------------|
+| Free  | 30           |
+| Pro   | 100          |
+| Ultra | 1000         |
+
+#### Database Schema
+
+The `profiles` table includes:
+- `credits`: Current credit balance
+- `last_credit_refresh`: Timestamp of the last credit refresh
+- `subscription_tier`: User's subscription tier (free, pro, ultra)
+
+The `credit_history` table tracks all credit changes:
+- `user_id`: User ID
+- `amount`: Credit amount
+- `type`: Type of credit change (daily_reset, usage, purchase, etc.)
+- `description`: Description of the credit change

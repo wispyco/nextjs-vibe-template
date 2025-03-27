@@ -188,12 +188,12 @@ export class ApiClient {
 
   /**
    * Get user credits
-   * This will also trigger a credit refresh if needed
+   * This will NOT trigger a credit refresh - use refreshUserCredits() for that
    */
   static async getUserCredits(): Promise<ApiResponse<number>> {
     try {
-      // Use the auth/user endpoint which now includes credit refresh logic
-      const response = await fetch('/api/auth/user', {
+      // Use the dedicated credits endpoint which doesn't trigger refresh
+      const response = await fetch('/api/user/credits', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -207,16 +207,46 @@ export class ApiClient {
       }
 
       const data = await response.json();
+      return { data: data.credits || 0, error: null };
+    } catch (error) {
+      console.error('Error getting credits:', error);
+      return { data: null, error: 'Failed to get credits' };
+    }
+  }
+
+  /**
+   * Refresh user credits if needed (once per 24 hours)
+   * This is the only method that should trigger credit refreshes
+   */
+  static async refreshUserCredits(): Promise<ApiResponse<number>> {
+    try {
+      // Use the auth/user endpoint which includes credit refresh logic
+      const response = await fetch('/api/auth/user', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { data: null, error: errorData.error || 'Failed to refresh credits' };
+      }
+
+      const data = await response.json();
 
       // Log if credits were refreshed
       if (data.credits_refreshed) {
-        console.log('Credits were refreshed during credits fetch');
+        console.log('Credits were refreshed successfully');
+      } else {
+        console.log('Credit refresh not needed (less than 24 hours since last refresh)');
       }
 
       return { data: data.profile?.credits || 0, error: null };
     } catch (error) {
-      console.error('Error getting credits:', error);
-      return { data: null, error: 'Failed to get credits' };
+      console.error('Error refreshing credits:', error);
+      return { data: null, error: 'Failed to refresh credits' };
     }
   }
 
