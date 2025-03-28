@@ -29,11 +29,18 @@ export async function POST(request: Request) {
     });
     
     if (error) {
-      console.error('Error signing in:', error);
+      console.error('❌ Error signing in:', error);
       return NextResponse.json({ 
         error: error.message 
       }, { status: 401 });
     }
+    
+    console.log('✅ User signed in successfully:', {
+      userId: data.user?.id,
+      email: data.user?.email,
+      timestamp: new Date().toISOString(),
+      action: 'signInWithPassword'
+    });
     
     // Create a response with the session data
     const response = NextResponse.json({ 

@@ -49,7 +49,7 @@ export const useAuth = () => useContext(AuthContext);
 
 // Provider component that wraps the app and makes auth object available to any child component
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
   const [tokens, setTokensState] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -87,6 +87,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tokenUpdateTimeoutRef.current = null;
       }, 1000);
     }
+  }, []);
+
+  // Wrapper for setUser that updates both state and ref
+  const setUser = useCallback((newUser: User | null) => {
+    console.log('🔄 Setting user state:', {
+      userId: newUser?.id,
+      email: newUser?.email,
+      timestamp: new Date().toISOString(),
+      action: 'setUser'
+    });
+    setUserState(newUser);
+    userRef.current = newUser;
   }, []);
 
   // Function to increment tokens
@@ -149,21 +161,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign out function
   const signOut = useCallback(async () => {
     try {
-      // Use ApiClient instead of direct Supabase access
-      const { error } = await ApiClient.signOut();
-
-      if (error) {
-        console.error("Error signing out:", error);
-        return;
-      }
-
-      // Clear local state
+      // Clear local state ONLY
+      console.log("🔄 Clearing local auth state via context signOut function");
       setUser(null);
       setTokens(0);
     } catch (error) {
-      console.error("Error signing out:", error);
+      // This catch might be redundant now but keep for safety
+      console.error("Error clearing local state on sign out:", error);
     }
-  }, [setTokens]);
+  }, [setTokens, setUser]);
 
   // Effect to initialize auth state and set up auth listener
   useEffect(() => {

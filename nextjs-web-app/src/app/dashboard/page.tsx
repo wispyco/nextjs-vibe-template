@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { user, tokens, setTokens, syncTokensWithDB, refreshCredits, isLoading } = useAuth();
+  const { user, tokens, setTokens, syncTokensWithDB, refreshCredits, isLoading, signOut } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -627,17 +627,22 @@ export default function DashboardPage() {
       if (error) {
         console.error("❌ Error signing out:", error);
         setError("Failed to sign out. Please try again.");
+        // Ensure loading is set to false even on error
+        setLoading(false);
         return;
       }
 
+      // Clear local auth state using the context's signOut function
+      console.log("🔄 Clearing local auth state via context signOut");
+      await signOut();
+
       console.log("✅ Successfully signed out, redirecting to home page");
-      // Redirect to home page
+      // Redirect to home page - setLoading(false) is not needed here as component will unmount
       router.push("/");
     } catch (error) {
       console.error("❌ Error in handleLogout:", error);
       setError("An unexpected error occurred. Please try again later.");
-    } finally {
-      console.log("🔄 Setting loading state to false");
+      // Ensure loading is set to false on catch
       setLoading(false);
     }
   };

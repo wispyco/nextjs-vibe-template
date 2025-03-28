@@ -51,6 +51,8 @@ export class ApiClient {
    */
   static async signIn(email: string, password: string): Promise<ApiResponse<User>> {
     try {
+      console.log('🔄 Attempting sign in for email:', email);
+      
       const response = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: {
@@ -62,13 +64,19 @@ export class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('❌ Sign in failed:', errorData);
         return { data: null, error: errorData.error || 'Failed to sign in' };
       }
 
       const data = await response.json();
+      console.log('✅ Sign in successful:', {
+        userId: data.user?.id,
+        email: data.user?.email,
+        timestamp: new Date().toISOString()
+      });
       return { data: data.user, error: null };
     } catch (error) {
-      console.error('Error signing in:', error);
+      console.error('❌ Error signing in:', error);
       return { data: null, error: 'Failed to sign in' };
     }
   }
