@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from '@supabase/ssr';
 
-export const runtime = "edge";
+// Using Node.js runtime for better cookie handling
+// export const runtime = "edge";
 
 /**
  * POST /api/auth/signout
@@ -41,17 +42,19 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('Error signing out from Supabase:', error);
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Failed to sign out from Supabase'
       }, { status: 500 });
     }
 
     // Create a response
-    const response = NextResponse.json({ 
-      success: true 
+    const response = NextResponse.json({
+      success: true
     }, { status: 200 });
-    
-    // Clear the auth cookies
+
+    console.log('\n[SERVER] Clearing auth cookies');
+
+    // Clear the standard auth cookies
     response.cookies.set('sb-access-token', '', {
       path: '/',
       maxAge: 0,
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    
+
     response.cookies.set('sb-refresh-token', '', {
       path: '/',
       maxAge: 0,
@@ -68,13 +71,29 @@ export async function POST(request: Request) {
       sameSite: 'lax',
     });
 
+    // Also clear the project-specific cookie
+    const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https:\/\/([^\.]+)\./)?.[1] || '';
+    const supabaseCookieName = projectRef ? `sb-${projectRef}-auth-token` : 'sb-auth-token';
+
+    console.log(`\n[SERVER] Clearing cookie with name: ${supabaseCookieName}`);
+
+    response.cookies.set(supabaseCookieName, '', {
+      path: '/',
+      maxAge: 0,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
+    console.log('\n[SERVER] All auth cookies cleared');
+
     console.log('✅ User signed out successfully and cookies cleared.');
-    
+
     return response;
   } catch (error) {
     console.error('❌ Error in /api/auth/signout:', error);
-    return NextResponse.json({ 
-      error: 'Failed to sign out' 
+    return NextResponse.json({
+      error: 'Failed to sign out'
     }, { status: 500 });
   }
-} 
+}

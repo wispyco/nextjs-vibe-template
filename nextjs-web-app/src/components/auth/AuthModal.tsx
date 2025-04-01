@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { AuthService } from "@/lib/auth";
+import { ApiClient } from "@/lib/api-client";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "@/context/AuthContext";
 
@@ -16,94 +17,118 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
   const { theme } = useTheme();
   const { setTokens } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("test@example.com");
+  const [password, setPassword] = useState("password123");
   const [firstName, setFirstName] = useState("User");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
-  
+
   if (!isOpen) return null;
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
-    
+
     try {
       if (mode === "login") {
+        // Call the API client to sign in
+        console.log('Attempting to sign in with email:', email);
+        const { data, error } = await ApiClient.signIn(email, password);
+
+        if (error) {
+          throw new Error(error);
+        }
+
+        if (!data) {
+          throw new Error('Login failed: No user data returned');
+        }
+
+        console.log('Login successful, user data:', data);
         setMessage({ type: "success", text: "Login successful!" });
-        
-        // Add a slight delay before closing modal to allow auth state to update
+
+        // Clear any stale cookies before setting new ones
+        const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https:\/\/([^\.]+)\./)?.[1] || '';
+        const supabaseCookieName = projectRef ? `sb-${projectRef}-auth-token` : 'sb-auth-token';
+        document.cookie = `${supabaseCookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        document.cookie = `sb-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        document.cookie = `sb-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+
+        // Add a longer delay before closing modal to allow auth state to update
+        // This gives more time for cookies to be properly set and processed
         setTimeout(() => {
           onClose();
           // Force a complete page refresh to ensure UI properly updates
-          window.location.reload();
-        }, 1000);
+          window.location.href = '/dashboard';
+        }, 2000);
       } else {
         // No need to validate firstName since it's a hidden field with default value
-        
-        const { error } = await AuthService.signUp(email, password, firstName);
-        
-        if (error) throw error;
-        
+        console.log('Attempting to sign up with email:', email);
+
+        // Use the API client for signup to ensure consistent behavior
+        const { data, error } = await ApiClient.signUp(email, password, firstName);
+
+        if (error) throw new Error(error);
+
         // Store first name in localStorage as a backup
         localStorage.setItem('firstName', firstName);
-        
+
+        console.log('Signup successful, user data:', data);
+
         // Context will handle token initialization when auth state changes
-        
-        setMessage({ 
-          type: "success", 
-          text: "Check your email for the confirmation link!" 
+        setMessage({
+          type: "success",
+          text: "Check your email for the confirmation link!"
         });
-        
+
         // For sign-up, we'll keep the modal open so they can read the message
       }
     } catch (error: unknown) {
-      setMessage({ 
-        type: "error", 
-        text: error instanceof Error ? error.message : "An error occurred during authentication" 
+      setMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "An error occurred during authentication"
       });
     } finally {
       setLoading(false);
     }
   };
-  
+
   const handleGoogleAuth = async () => {
     setGoogleLoading(true);
     setMessage(null);
-    
+
     try {
-      
+
       // Set default tokens for new users - this will be visible immediately
       // in case of new Google sign-ups
       setTokens(100);
-      
+
       const { error } = await AuthService.signInWithOAuth('google');
-      
+
       if (error) throw error;
-      
+
       // No need to set success message as we're redirecting to Google
     } catch (error: unknown) {
       console.error("Google auth error:", error);
-      setMessage({ 
-        type: "error", 
-        text: error instanceof Error ? error.message : "An error occurred during Google authentication" 
+      setMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "An error occurred during Google authentication"
       });
     } finally {
       setGoogleLoading(false);
     }
   };
-  
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         className={`relative w-full max-w-md p-6 rounded-xl shadow-2xl ${
@@ -111,7 +136,7 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <button 
+        <button
           onClick={onClose}
           className={`absolute top-4 right-4 p-1 rounded-full ${
             theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
@@ -122,21 +147,21 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-        
+
         <h2 className="text-xl font-bold mb-4">
           {mode === "login" ? "Log In" : "Sign Up"}
         </h2>
-        
+
         {message && (
           <div className={`p-3 mb-4 rounded-lg ${
-            message.type === "error" 
-              ? "bg-red-500/10 text-red-500" 
+            message.type === "error"
+              ? "bg-red-500/10 text-red-500"
               : "bg-green-500/10 text-green-500"
           }`}>
             {message.text}
           </div>
         )}
-        
+
         <div className="flex flex-col gap-4">
           <form onSubmit={handleEmailAuth} className="space-y-4">
             {mode === "signup" && (
@@ -147,7 +172,7 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
                 onChange={(e) => setFirstName(e.target.value)}
               />
             )}
-            
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-1">
                 Email
@@ -159,14 +184,14 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 className={`w-full p-2 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-800 border-gray-700 text-white' 
+                  theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
                 required
               />
             </div>
-            
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium mb-1">
                 Password
@@ -178,14 +203,14 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 className={`w-full p-2 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-800 border-gray-700 text-white' 
+                  theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
                 required
               />
             </div>
-            
+
             <button
               type="submit"
               disabled={loading}
@@ -202,7 +227,7 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
               )}
             </button>
           </form>
-          
+
           {/* Add divider with "or" text */}
           <div className="relative my-2">
             <div className="absolute inset-0 flex items-center">
@@ -214,7 +239,7 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
               </span>
             </div>
           </div>
-          
+
           {/* Google Sign In Button */}
           <button
             type="button"
@@ -235,12 +260,12 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
               </>
             )}
           </button>
-          
+
           <div className="text-center text-sm mt-4">
             {mode === "login" ? (
               <p>
                 Don&apos;t have an account?{" "}
-                <button 
+                <button
                   onClick={() => {
                     onClose();
                     setTimeout(() => {
@@ -256,7 +281,7 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
             ) : (
               <p>
                 Already have an account?{" "}
-                <button 
+                <button
                   onClick={() => {
                     onClose();
                     setTimeout(() => {
@@ -275,4 +300,4 @@ export function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
       </motion.div>
     </motion.div>
   );
-} 
+}

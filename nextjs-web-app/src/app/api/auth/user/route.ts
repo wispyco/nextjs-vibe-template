@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from '@supabase/ssr';
 import { checkAndRefreshCredits } from '@/lib/credits';
 
+// Use Edge runtime to avoid cookie handling issues
 export const runtime = "edge";
 
 /**
@@ -10,33 +11,28 @@ export const runtime = "edge";
  */
 export async function GET(request: Request) {
   try {
-    // Create a server client that can handle cookies
+    // Create a response object
+    const response = NextResponse.next();
+
+    // Create a server client with cookie handling
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() {
-            const cookie = request.headers.get('cookie') || '';
-            return cookie.split(';').map(cookie => {
-              const [name, ...rest] = cookie.split('=');
-              return {
-                name: name.trim(),
-                value: rest.join('='),
-              };
-            });
+          get(name) {
+            return request.headers.get('cookie')?.match(new RegExp(`(^|;\\s*)${name}=([^;]*)`))?.[2] || null;
           },
-          setAll(cookiesToSet) {
-            const response = NextResponse.next({
-              request,
-            });
-
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
-            });
-
-            return response;
-          }
+          set(name, value, options) {
+            // Set cookies on the response
+            const cookieValue = `${name}=${value}; path=${options?.path || '/'}; max-age=${options?.maxAge || 31536000}`;
+            response.headers.append('Set-Cookie', cookieValue);
+          },
+          remove(name, options) {
+            // Remove cookies by setting expiry to past date
+            const cookieValue = `${name}=; path=${options?.path || '/'}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+            response.headers.append('Set-Cookie', cookieValue);
+          },
         },
       }
     );
@@ -45,10 +41,26 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.getUser();
 
     if (error || !data.user) {
-      return NextResponse.json({
+      // Clear any existing auth cookies on error
+      const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https:\/\/([^\.]+)\./)?.[1] || '';
+      const supabaseCookieName = projectRef ? `sb-${projectRef}-auth-token` : 'sb-auth-token';
+
+      // Create an error response
+      return new Response(JSON.stringify({
         authenticated: false,
         user: null
-      }, { status: 401 });
+      }), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          // Clear all auth-related cookies
+          'Set-Cookie': [
+            `${supabaseCookieName}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+            `sb-access-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+            `sb-refresh-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+          ]
+        }
+      });
     }
 
     const user = data.user;
@@ -62,12 +74,19 @@ export async function GET(request: Request) {
 
     if (profileError) {
       console.error('Error getting user profile:', profileError);
-      return NextResponse.json({
+
+      // Create an error response
+      return new Response(JSON.stringify({
         authenticated: true,
         user,
         profile: null,
         error: 'Failed to get profile data'
-      }, { status: 500 });
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     }
 
     // Check if the user's credits need to be refreshed
@@ -81,18 +100,41 @@ export async function GET(request: Request) {
       profile.last_credit_refresh = new Date().toISOString();
     }
 
-    return NextResponse.json({
+    // Create a success response
+    return new Response(JSON.stringify({
       authenticated: true,
       user,
       profile,
       credits_refreshed: refreshed
-    }, { status: 200 });
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
   } catch (error) {
     console.error('Error in /api/auth/user:', error);
-    return NextResponse.json({
+
+    // Clear any existing auth cookies on error
+    const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https:\/\/([^\.]+)\./)?.[1] || '';
+    const supabaseCookieName = projectRef ? `sb-${projectRef}-auth-token` : 'sb-auth-token';
+
+    // Create an error response
+    return new Response(JSON.stringify({
       authenticated: false,
       user: null,
       error: 'Failed to get user data'
-    }, { status: 500 });
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        // Clear all auth-related cookies
+        'Set-Cookie': [
+          `${supabaseCookieName}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+          `sb-access-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+          `sb-refresh-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+        ]
+      }
+    });
   }
 }
