@@ -11,19 +11,32 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
 -- Policy to allow individuals to view their own profile
-CREATE POLICY "Users can view own profile" 
-  ON public.profiles 
-  FOR SELECT 
-  USING (auth.uid() = id);
+DO $$
+BEGIN
+  BEGIN
+    CREATE POLICY "Users can view own profile"
+      ON public.profiles
+      FOR SELECT
+      USING (auth.uid() = id);
+  EXCEPTION
+    WHEN duplicate_object THEN
+      RAISE NOTICE 'Policy "Users can view own profile" already exists, skipping';
+  END;
 
--- Policy to allow individuals to update their own profile
-CREATE POLICY "Users can update own profile" 
-  ON public.profiles 
-  FOR UPDATE 
-  USING (auth.uid() = id);
+  BEGIN
+    -- Policy to allow individuals to update their own profile
+    CREATE POLICY "Users can update own profile"
+      ON public.profiles
+      FOR UPDATE
+      USING (auth.uid() = id);
+  EXCEPTION
+    WHEN duplicate_object THEN
+      RAISE NOTICE 'Policy "Users can update own profile" already exists, skipping';
+  END;
+END $$;
 
 -- Create a function to handle new user signup
-CREATE OR REPLACE FUNCTION public.handle_new_user() 
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, first_name)
@@ -36,4 +49,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user(); 
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
