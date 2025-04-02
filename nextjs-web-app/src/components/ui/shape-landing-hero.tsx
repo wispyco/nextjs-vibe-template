@@ -1,8 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { Circle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { cn } from "../ui/utils";
-import { useState, useEffect } from "react";
 
 function ElegantShape({
   className,
@@ -94,26 +95,6 @@ function HeroGeometric({
     }),
   };
 
-  // Animated gradient positions for the title
-  const [gradientPosition, setGradientPosition] = useState(0);
-  
-  // Animate the gradient
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setGradientPosition((prev) => (prev + 1) % 200);
-    }, 50);
-    return () => clearInterval(interval);
-  }, []);
-  
-  // Gradient animation styles
-  const gradientStyle = {
-    backgroundSize: "200% 200%",
-    backgroundPosition: `${gradientPosition}% 50%`,
-  };
-
-  // Check if title2 contains a number followed by 'x'
-  const title2Parts = title2.match(/^(\d+)(x.*)$/);
-  
   return (
     <div className="relative min-h-[100vh] w-full flex items-start justify-center overflow-hidden bg-[#030303]">
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.05] via-transparent to-rose-500/[0.05] blur-3xl" />
@@ -166,6 +147,17 @@ function HeroGeometric({
       </div>
 
       <div className="relative z-10 container mx-auto px-4 md:px-6 pt-20 ">
+        <motion.div
+          custom={0}
+          variants={fadeUpVariants}
+          initial="hidden"
+          animate="visible"
+          className="absolute top-5 left-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] mb-2 md:mb-14"
+        >
+          <Circle className="h-3 w-3 fill-green-500/80" />
+          {/* <span className="text-base text-white/60 tracking-wide">Chaos Coder</span> */}
+        </motion.div>
+
         <div className="max-w-3xl mx-auto text-center">
           <motion.div
             custom={1}
@@ -178,27 +170,13 @@ function HeroGeometric({
                 {badge} {title1}
               </span>
               <br />
-              {title2Parts ? (
-                <span className="bg-clip-text text-transparent">
-                  <span 
-                    className="text-5xl sm:text-7xl md:text-9xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-purple-300 to-rose-300"
-                    style={gradientStyle}
-                  >
-                    {title2Parts[1]}
-                  </span>
-                  <span className="bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 bg-clip-text text-transparent">
-                    {title2Parts[2]}
-                  </span>
-                </span>
-              ) : (
-                <span
-                  className={cn(
-                    "bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 "
-                  )}
-                >
-                  {title2}
-                </span>
-              )}
+              <span
+                className={cn(
+                  "bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 "
+                )}
+              >
+                {title2}
+              </span>
             </h1>
           </motion.div>
 
@@ -209,11 +187,13 @@ function HeroGeometric({
             animate="visible"
           >
             <p className="text-base sm:text-lg md:text-xl text-white/60 mb-8 font-light tracking-wide max-w-xl mx-auto px-4">
-              Enter your prompt and we will spin up{" "}
+              Enter your prompt and we will spin up 9 separate websites
+              {" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 ">
-                many different
-              </span>{" "}
-              website designs for you to chaotically edit!
+                IN SECONDS
+              </span>
+              {" "}
+              for you to chaotically edit!
             </p>
           </motion.div>
 

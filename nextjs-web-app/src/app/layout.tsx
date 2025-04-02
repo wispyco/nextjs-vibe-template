@@ -3,10 +3,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import StyledComponentsRegistry from "@/components/styled-components-registry";
 import { ThemeProvider } from "@/context/ThemeContext";
-import { AuthProvider } from "@/context/AuthContext";
-import { GenerationsProvider } from "@/context/GenerationsContext";
-import { AuthButtonWrapper } from "@/components/auth/AuthButtonWrapper";
-import StripeProvider from "@/components/StripeProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -19,12 +15,7 @@ export const metadata: Metadata = {
   description:
     "Generate six different web applications from a single prompt using Groq's LLama3-70B model",
   icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/coin.png', type: 'image/png' }
-    ],
-    apple: "/coin.png",
-    shortcut: "/favicon.ico",
+    icon: "/favicon.ico",
   },
 };
 
@@ -37,16 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
         <StyledComponentsRegistry>
-          <ThemeProvider>
-            <AuthProvider>
-              <GenerationsProvider>
-                <StripeProvider>
-                  <AuthButtonWrapper />
-                  {children}
-                </StripeProvider>
-              </GenerationsProvider>
-            </AuthProvider>
-          </ThemeProvider>
+          <ThemeProvider>{children}</ThemeProvider>
         </StyledComponentsRegistry>
       </body>
     </html>
