@@ -1,106 +1,98 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AuroraBackground } from "@/components/ui/aurora-background";
-import AppTile from "@/components/AppTile";
-import CodePreviewPanel from "@/components/CodePreviewPanel";
-import { BrowserContainer } from "@/components/ui/browser-container";
 import { useTheme } from "@/context/ThemeContext";
-import ThemeToggle from "@/components/ThemeToggle";
+import { useGenerations } from "@/context/GenerationsContext";
 import PromptInput from "@/components/DevTools/PromptInput";
 import PerformanceMetrics from "@/components/DevTools/PerformanceMetrics";
 import VoiceInput from "@/components/DevTools/VoiceInput";
-import MockDeployButton from "@/components/MockDeployButton";
 import { SignupModal } from "@/components/SignupModal";
-import styled from "styled-components";
-
-const LoadingContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-  width: 100%;
-  gap: 20px;
-  color: #9ca3af;
-`;
-
-const LoadingTitle = styled.div`
-  font-size: 24px;
-  margin-bottom: 10px;
-`;
-
-const LoadingBar = styled(motion.div)`
-  width: 100%;
-  max-width: 500px;
-  height: 8px;
-  background: rgba(75, 85, 99, 0.3);
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
-`;
-
-const LoadingProgress = styled(motion.div)`
-  height: 100%;
-  background: #4b5563;
-  border-radius: 4px;
-`;
-
-const ShortLoadingBar = styled(LoadingBar)`
-  max-width: 300px;
-`;
+import { AlertModal } from "@/components/AlertModal";
+import { useAuth } from "@/context/AuthContext";
+import {
+  DEFAULT_STYLES,
+  isPredefinedStyle,
+  getStyleDisplayNames
+} from "@/config/styles";
+import AppTile from "@/components/AppTile";
 
 // Wrapper component that uses searchParams
 function ResultsContent() {
-  const NUM_APPS = 9; // Single variable to control number of apps
-  
   const searchParams = useSearchParams();
+  const promptParam = searchParams.get('prompt') || '';
+  const { numGenerations: contextNumGenerations } = useGenerations();
+
+  // Parse the configuration
+  const configParam = searchParams.get('config') || '';
+  const defaultConfig = {
+    numGenerations: contextNumGenerations,
+    modelTypes: Array(contextNumGenerations).fill(0).map((_, index) => index % 2 === 0 ? "pro" : "fast"),
+    styles: DEFAULT_STYLES.slice(0, contextNumGenerations)
+  };
+
+  let config;
+  try {
+    config = configParam ? JSON.parse(decodeURIComponent(configParam)) : defaultConfig;
+  } catch (e) {
+    console.error("Failed to parse config:", e);
+    config = defaultConfig;
+  }
+
+  // If we still have old config with vibes, convert it to styles
+  const styles = config.styles || config.vibes || defaultConfig.styles;
+  const { numGenerations, modelTypes = defaultConfig.modelTypes } = config;
+
   const [loadingStates, setLoadingStates] = useState<boolean[]>(
-    new Array(NUM_APPS).fill(true)
+    new Array(numGenerations).fill(true)
   );
-  const [results, setResults] = useState<string[]>(new Array(NUM_APPS).fill(""));
+  const [results, setResults] = useState<string[]>(new Array(numGenerations).fill(""));
   const [error, setError] = useState<string | null>(null);
-  const [selectedAppIndex, setSelectedAppIndex] = useState(0);
+  const [selectedAppIndex, setSelectedAppIndex] = useState<number>(0);
+  const [expandedAppIndex, setExpandedAppIndex] = useState<number | null>(null);
   const [editedResults, setEditedResults] = useState<string[]>(
-    new Array(NUM_APPS).fill("")
+    new Array(numGenerations).fill("")
   );
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [isMetricsOpen, setIsMetricsOpen] = useState(false);
   const [generationTimes, setGenerationTimes] = useState<{
     [key: number]: number;
   }>({});
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [isVoiceEnabled] = useState(true);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertInfo, setAlertInfo] = useState<{
+    title: string;
+    message: string;
+    type: 'auth' | 'credits';
+  }>({
+    title: '',
+    message: '',
+    type: 'auth'
+  });
+  const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const { theme } = useTheme();
+  const { setTokens } = useAuth();
+
+  // Track in-flight requests to prevent duplicates
+  const pendingRequests = useRef<Set<string>>(new Set());
+
+  // Reference for animation
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const variations = [
-    "",
-    "Make it visually appealing and use a different framework than the other versions.",
-    "Focus on simplicity and performance. Use minimal dependencies.",
-    "Add some creative features that might not be explicitly mentioned in the prompt.",
-    "Create an enhanced version with additional features and modern design patterns.",
-    "Build a version with accessibility and internationalization features in mind.",
-    "Create a version optimized for mobile devices with responsive design.",
-    "Build a version with advanced animations and interactive elements.",
-    "Create a version with data visualization capabilities.",
     "Build a version with offline functionality and progressive web app features.",
   ];
 
-  const appTitles = [
-    "Standard Version",
-    "Visual Focus",
-    "Minimalist Version",
-    "Creative Approach",
-    "Enhanced Version",
-    "Accessible Version",
-    "Mobile Optimized",
-    "Interactive Version",
-    "Data Visualization",
-    "Progressive Web App",
-  ];
+  // Create a mapping from style values to display names using our central configuration
+  const styleDisplayNames = getStyleDisplayNames();
+
+  // Generate app titles based on the styles from the config
+  const appTitles = styles.map((style: string) => styleDisplayNames[style] || style);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -127,45 +119,104 @@ function ResultsContent() {
   const generateApp = async (index: number, promptText: string) => {
     const startTime = performance.now();
     try {
-      const framework =
-        appTitles[index] === "Standard Version"
-          ? "bootstrap"
-          : appTitles[index] === "Visual Focus"
-          ? "materialize"
-          : appTitles[index] === "Minimalist Version"
-          ? "pure"
-          : appTitles[index] === "Creative Approach"
-          ? "tailwind"
-          : appTitles[index] === "Accessible Version"
-          ? "foundation"
-          : "Bulma";
+      // Use the style from config instead of predefined frameworks
+      const style = styles[index] || DEFAULT_STYLES[index % DEFAULT_STYLES.length] || DEFAULT_STYLES[0]; // Use corresponding default style or first as fallback
+
+      // Determine if this is a custom style using our central helper
+      const isCustomStyle = !isPredefinedStyle(style);
+
+      // Get the model type for this specific generation
+      const modelType = modelTypes[index] || "fast";
+
+      // Create a unique request signature to prevent duplicate requests
+      const requestSignature = `${promptText}:${style}:${modelType}:${variations[index] || ''}:${index}`;
+
+      // Skip if this exact request is already in progress
+      if (pendingRequests.current.has(requestSignature)) {
+        // Skip duplicate request
+        return;
+      }
+
+      // Mark this request as in progress
+      pendingRequests.current.add(requestSignature);
+
+      // Generate a unique request ID
+      const requestId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: promptText,
-          variation: variations[index],
-          framework,
+          variation: variations[index] || "",
+          framework: isCustomStyle ? "custom" : style,
+          customStyle: isCustomStyle ? style : undefined,
+          model: modelType,
+          requestId
         }),
       });
 
-      if (response.status === 429) {
-        // Show signup modal for rate limit
-        setShowSignupModal(true);
-        throw new Error("Rate limit exceeded. Please create an account to continue.");
+      // Remove from pending requests when done
+      pendingRequests.current.delete(requestSignature);
+
+      if (response.status === 409) {
+        // Duplicate request detected
+        return;
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (err) {
+        console.error('Failed to parse JSON response:', err);
+        throw new Error('Failed to parse server response');
       }
 
       if (!response.ok) {
-        throw new Error(`Failed to generate app ${index + 1}`);
+        const errorMessage = data?.error || 'An unknown error occurred';
+        const errorDetails = data?.details ? `: ${data.details}` : '';
+
+        if (response.status === 401) {
+          // Authentication required error
+          setAlertInfo({
+            title: "Authentication Required",
+            message: "You need to sign in to generate web apps. Sign in to continue.",
+            type: 'auth'
+          });
+          setShowAlertModal(true);
+          return;
+        }
+
+        if (response.status === 402) {
+          // Insufficient credits error
+          setAlertInfo({
+            title: "No Credits Remaining",
+            message: "You have used all your available credits. Please check your dashboard to manage your credits.",
+            type: 'credits'
+          });
+          setShowAlertModal(true);
+          return;
+        }
+
+        if (response.status === 429) {
+          // Show signup modal for rate limit
+          setShowSignupModal(true);
+          throw new Error("Rate limit exceeded. Please create an account to continue.");
+        }
+
+        if (response.status === 500 && errorMessage.includes('deduct credits')) {
+          console.error(`Credit deduction failed: ${errorMessage}${errorDetails}`);
+          setError(`Credit deduction failed: ${errorMessage}${errorDetails}. Please try again or contact support.`);
+          return;
+        }
+
+        throw new Error(`${errorMessage}${errorDetails}`);
       }
 
-      const data = await response.json();
-      if (data.error === "rate_limit_exceeded") {
-        setShowSignupModal(true);
-        throw new Error("Rate limit exceeded. Please create an account to continue.");
-      } else if (data.error) {
-        throw new Error(data.error);
+      // Check if credits were returned (user is authenticated)
+      if (data.credits !== undefined) {
+        setRemainingCredits(data.credits);
+        setTokens(data.credits); // Update token store with credits from API response
       }
 
       setResults((prev) => {
@@ -198,27 +249,23 @@ function ResultsContent() {
     }
   };
 
-  const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false) => {
+  const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false, customNumGenerations?: number) => {
     if (isUpdate) {
       if (chaosMode) {
+        // Get the number of generations to update (either from custom input or current config)
+        const numToUpdate = customNumGenerations || numGenerations;
+
         // Update all apps in chaos mode
-        setLoadingStates(new Array(6).fill(true));
-        
+        setLoadingStates(new Array(numToUpdate).fill(true));
+
         try {
           // Create an array of promises for all apps
-          const updatePromises = appTitles.map(async (title, index) => {
-            const framework =
-              title === "Standard Version"
-                ? "bootstrap"
-                : title === "Visual Focus"
-                ? "materialize"
-                : title === "Minimalist Version"
-                ? "pure"
-                : title === "Creative Approach"
-                ? "tailwind"
-                : title === "Accessible Version"
-                ? "foundation"
-                : "Bulma";
+          const updatePromises = appTitles.slice(0, numToUpdate).map(async (title: string, index: number) => {
+            // Use the style directly from the styles array
+            const style = styles[index];
+
+            // Check if this is a custom style using our central helper
+            const isCustomStyle = !isPredefinedStyle(style);
 
             const response = await fetch("/api/generate", {
               method: "POST",
@@ -226,46 +273,273 @@ function ResultsContent() {
               body: JSON.stringify({
                 prompt,
                 existingCode: editedResults[index],
-                framework,
+                framework: isCustomStyle ? "custom" : style,
+                customStyle: isCustomStyle ? style : undefined,
                 isUpdate: true,
+                model: modelTypes[index] || "fast",
               }),
             });
 
+            if (response.status === 401) {
+              // Authentication required error
+              throw { status: 401, message: "Authentication required" };
+            }
+
+            if (response.status === 402) {
+              // Insufficient credits error
+              throw { status: 402, message: "Insufficient credits" };
+            }
+
+            if (response.status === 429) {
+              // Rate limit error
+              throw { status: 429, message: "Rate limit exceeded" };
+            }
+
             if (!response.ok) {
-              throw new Error(`Failed to update app ${index + 1}`);
+              throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
-            if (data.error) {
-              throw new Error(data.error);
-            }
-
-            return { index, code: data.code };
+            return { index, data };
           });
 
-          // Wait for all updates to complete
+          // Wait for all promises to resolve
           const results = await Promise.all(updatePromises);
-          
-          // Update all results at once
-          setEditedResults((prev) => {
-            const newResults = [...prev];
-            results.forEach(result => {
-              newResults[result.index] = result.code;
+
+          // Update the results state with the new data
+          results.forEach(({ index, data }) => {
+            setResults((prev) => {
+              const newResults = [...prev];
+              newResults[index] = data.code;
+              return newResults;
             });
-            return newResults;
+
+            setEditedResults((prev) => {
+              const newResults = [...prev];
+              newResults[index] = data.code;
+              return newResults;
+            });
+
+            // Update credits from the last response
+            if (data.credits !== undefined) {
+              setRemainingCredits(data.credits);
+              setTokens(data.credits);
+            }
           });
-        } catch (err) {
-          setError(
-            err instanceof Error ? err.message : "Failed to update applications in chaos mode"
-          );
+        } catch (error: unknown) {
+          console.error("Error updating apps:", error);
+
+          // Check if error is an object with status property
+          if (error && typeof error === 'object' && 'status' in error) {
+            const statusError = error as { status: number; message?: string };
+
+            if (statusError.status === 401) {
+              setAlertInfo({
+                title: "Authentication Required",
+                message: "You need to sign in to generate web apps. Sign in to continue.",
+                type: 'auth'
+              });
+              setShowAlertModal(true);
+            } else if (statusError.status === 402) {
+              setAlertInfo({
+                title: "No Credits Remaining",
+                message: "You have used all your available credits. Subscribe to a plan to get more credits.",
+                type: 'credits'
+              });
+              setShowAlertModal(true);
+            } else if (statusError.status === 429) {
+              setShowSignupModal(true);
+            }
+          } else {
+            setError("Failed to update apps. Please try again.");
+          }
         } finally {
-          setLoadingStates(new Array(6).fill(false));
+          setLoadingStates(new Array(numToUpdate).fill(false));
         }
       } else {
-        // Update only the selected app (original behavior)
+        // Update only the selected app
         setLoadingStates((prev) => {
           const newStates = [...prev];
           newStates[selectedAppIndex] = true;
+          return newStates;
+        });
+
+        try {
+          // Use the style directly from the styles array
+          const style = styles[selectedAppIndex];
+
+          // Check if this is a custom style using our central helper
+          const isCustomStyle = !isPredefinedStyle(style);
+
+          const response = await fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt,
+              existingCode: editedResults[selectedAppIndex],
+              framework: isCustomStyle ? "custom" : style,
+              customStyle: isCustomStyle ? style : undefined,
+              isUpdate: true,
+              model: modelTypes[selectedAppIndex] || "fast",
+            }),
+          });
+
+          if (response.status === 401) {
+            // Authentication required error
+            setAlertInfo({
+              title: "Authentication Required",
+              message: "You need to sign in to generate web apps. Sign in to continue.",
+              type: 'auth'
+            });
+            setShowAlertModal(true);
+            return;
+          }
+
+          if (response.status === 402) {
+            // Insufficient credits error
+            setAlertInfo({
+              title: "No Credits Remaining",
+              message: "You have used all your available credits. Please check your dashboard to manage your credits.",
+              type: 'credits'
+            });
+            setShowAlertModal(true);
+            return;
+          }
+
+          if (response.status === 429) {
+            // Show signup modal for rate limit
+            setShowSignupModal(true);
+            throw new Error("Rate limit exceeded. Please create an account to continue.");
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          setResults((prev) => {
+            const newResults = [...prev];
+            newResults[selectedAppIndex] = data.code;
+            return newResults;
+          });
+
+          setEditedResults((prev) => {
+            const newResults = [...prev];
+            newResults[selectedAppIndex] = data.code;
+            return newResults;
+          });
+
+          // Update credits
+          if (data.credits !== undefined) {
+            setRemainingCredits(data.credits);
+            setTokens(data.credits);
+          }
+        } catch (error) {
+          console.error("Error updating app:", error);
+          setError("Failed to update app. Please try again.");
+        } finally {
+          setLoadingStates((prev) => {
+            const newStates = [...prev];
+            newStates[selectedAppIndex] = false;
+            return newStates;
+          });
+        }
+      }
+    } else {
+      // Generate a new app
+      // For new generation, use the selected style if available
+      const styleToUse = selectedStyle || DEFAULT_STYLES[0];
+      const isCustomStyle = !isPredefinedStyle(styleToUse);
+
+      // Add a new loading state
+      setLoadingStates((prev) => [...prev, true]);
+
+      try {
+        const response = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            framework: isCustomStyle ? "custom" : styleToUse,
+            customStyle: isCustomStyle ? styleToUse : undefined,
+            model: "fast", // Default to fast model for new generations
+          }),
+        });
+
+        if (response.status === 401) {
+          // Authentication required error
+          setAlertInfo({
+            title: "Authentication Required",
+            message: "You need to sign in to generate web apps. Sign in to continue.",
+            type: 'auth'
+          });
+          setShowAlertModal(true);
+
+          // Remove the loading state we just added
+          setLoadingStates((prev) => prev.slice(0, -1));
+          return;
+        }
+
+        if (response.status === 402) {
+          // Insufficient credits error
+          setAlertInfo({
+            title: "No Credits Remaining",
+            message: "You have used all your available credits. Please check your dashboard to manage your credits.",
+            type: 'credits'
+          });
+          setShowAlertModal(true);
+
+          // Remove the loading state we just added
+          setLoadingStates((prev) => prev.slice(0, -1));
+          return;
+        }
+
+        if (response.status === 429) {
+          // Show signup modal for rate limit
+          setShowSignupModal(true);
+
+          // Remove the loading state we just added
+          setLoadingStates((prev) => prev.slice(0, -1));
+          throw new Error("Rate limit exceeded. Please create an account to continue.");
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Add the new result
+        setResults((prev) => [...prev, data.code]);
+        setEditedResults((prev) => [...prev, data.code]);
+
+        // Add the style to the styles array
+        styles.push(styleToUse);
+
+        // Select the new app
+        setSelectedAppIndex(results.length);
+
+        // Reset selected style after generation
+        setSelectedStyle(null);
+
+        // Update credits
+        if (data.credits !== undefined) {
+          setRemainingCredits(data.credits);
+          setTokens(data.credits);
+        }
+
+      } catch (error) {
+        console.error("Error generating new app:", error);
+        setError("Failed to generate new app. Please try again.");
+
+        // Remove the loading state we just added
+        setLoadingStates((prev) => prev.slice(0, -1));
+      } finally {
+        // Update the loading state for the new app
+        setLoadingStates((prev) => {
+          const newStates = [...prev];
+          newStates[newStates.length - 1] = false;
           return newStates;
         });
 
@@ -320,13 +594,10 @@ function ResultsContent() {
           });
         }
       }
-    } else {
-      setLoadingStates(new Array(NUM_APPS).fill(true));
-      setResults(new Array(NUM_APPS).fill(""));
-      setEditedResults(new Array(NUM_APPS).fill(""));
-      setGenerationTimes({});
-      Promise.all(variations.map((_, index) => generateApp(index, prompt)));
     }
+
+    // Close the prompt input
+    setIsPromptOpen(false);
   };
 
   const handleVoiceInput = (text: string) => {
@@ -334,21 +605,120 @@ function ResultsContent() {
   };
 
   useEffect(() => {
-    const prompt = searchParams.get("prompt");
-    if (!prompt) {
+    if (!promptParam) {
       setError("No prompt provided");
-      setLoadingStates(new Array(NUM_APPS).fill(false));
+      setLoadingStates(new Array(numGenerations).fill(false));
       return;
     }
 
-    // Generate all apps in parallel
-    Promise.all(variations.map((_, index) => generateApp(index, prompt)));
-  }, [searchParams]);
+    // Set the last tile to be expanded initially
+    setExpandedAppIndex(numGenerations - 1);
+    setSelectedAppIndex(numGenerations - 1);
 
-  const handleCodeChange = (newCode: string) => {
-    const newResults = [...editedResults];
-    newResults[selectedAppIndex] = newCode;
-    setEditedResults(newResults);
+    // Clear any pending requests
+    pendingRequests.current.clear();
+
+    // Generate apps in parallel with a small delay between each to avoid overwhelming the server
+    // This creates a staggered loading effect that feels more responsive
+    const generateAppsWithStagger = async () => {
+      const batchSize = 6; // Process in batches for better performance
+      const delay = 100; // Small delay between batches
+
+      // Ensure we're generating the correct number of apps based on the config
+      // This allows for any number from 1-99 as specified in the requirements
+      for (let batch = 0; batch < Math.ceil(numGenerations / batchSize); batch++) {
+        const startIdx = batch * batchSize;
+        const endIdx = Math.min(startIdx + batchSize, numGenerations);
+
+        // Generate this batch in parallel
+        await Promise.all(
+          Array.from({ length: endIdx - startIdx }).map((_, i) => {
+            const index = startIdx + i;
+            return generateApp(index, promptParam);
+          })
+        );
+
+        // Small delay before next batch if not the last batch
+        if (batch < Math.ceil(numGenerations / batchSize) - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    };
+
+    generateAppsWithStagger();
+  }, [promptParam, numGenerations]);
+
+  // Function to handle clicking on a tile
+  const handleTileClick = (index: number) => {
+    if (expandedAppIndex === index) {
+      // If clicking the already expanded tile, collapse it
+      setExpandedAppIndex(null);
+    } else {
+      // Expand the clicked tile
+      setExpandedAppIndex(index);
+    }
+    setSelectedAppIndex(index);
+  };
+
+  // Handle app deletion
+  const handleDeleteApp = (index: number) => {
+    // Create new arrays without the deleted item
+    const newLoadingStates = [...loadingStates];
+    newLoadingStates.splice(index, 1);
+    setLoadingStates(newLoadingStates);
+
+    const newResults = [...results];
+    newResults.splice(index, 1);
+    setResults(newResults);
+
+    const newEditedResults = [...editedResults];
+    newEditedResults.splice(index, 1);
+    setEditedResults(newEditedResults);
+
+    // Update styles array to keep appTitles in sync
+    const newStyles = [...styles];
+    newStyles.splice(index, 1);
+    // We need to update the styles variable directly since it's derived from config
+    // This ensures appTitles will be regenerated correctly
+    styles.splice(index, 1);
+
+    // Update model types if they exist
+    if (modelTypes) {
+      const newModelTypes = [...modelTypes];
+      newModelTypes.splice(index, 1);
+      // Update modelTypes in a similar way to styles
+      modelTypes.splice(index, 1);
+    }
+
+    // Update generation times if they exist for this index
+    if (generationTimes[index]) {
+      const newGenerationTimes = { ...generationTimes };
+      delete newGenerationTimes[index];
+      // Reindex the keys for remaining items
+      const reindexedTimes: {[key: number]: number} = {};
+      Object.keys(newGenerationTimes).forEach((key) => {
+        const numKey = parseInt(key);
+        if (numKey > index) {
+          reindexedTimes[numKey - 1] = newGenerationTimes[numKey];
+        } else {
+          reindexedTimes[numKey] = newGenerationTimes[numKey];
+        }
+      });
+      setGenerationTimes(reindexedTimes);
+    }
+
+    // Update selected index if needed
+    if (selectedAppIndex >= index && selectedAppIndex > 0) {
+      setSelectedAppIndex(selectedAppIndex - 1);
+    }
+
+    // If the expanded app is being deleted, collapse it
+    if (expandedAppIndex === index) {
+      setExpandedAppIndex(null);
+    } else if (expandedAppIndex !== null && expandedAppIndex > index) {
+      // Adjust the expanded index if it's after the deleted item
+      setExpandedAppIndex(expandedAppIndex - 1);
+    }
   };
 
   // Function to handle clicking on a tile
@@ -365,6 +735,13 @@ function ResultsContent() {
 
   return (
     <AuroraBackground>
+      <AlertModal
+        isOpen={showAlertModal}
+        onClose={() => setShowAlertModal(false)}
+        title={alertInfo.title}
+        message={alertInfo.message}
+        type={alertInfo.type}
+      />
       {showSignupModal && (
         <SignupModal
           isOpen={showSignupModal}
@@ -392,25 +769,12 @@ function ResultsContent() {
                 theme === "dark" ? "text-white" : "text-gray-900"
               }`}
             >
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 ">
-                Chaos Coder
-              </span>
-            </motion.h1>
-            <div className="flex items-center gap-4">
-              <ThemeToggle />
-              <Link
-                href="/"
-                className={`hover:underline transition-colors ${
-                  theme === "dark"
-                    ? "text-gray-300 hover:text-white"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                ← Back to Prompt
+              <Link href="/">
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 cursor-pointer hover:opacity-80 transition-opacity">
+                  Chaos Coder
+                </span>
               </Link>
-            </div>
-
-            {/* <ThemeToggle /> */}
+            </motion.h1>
           </div>
 
           {error && (
@@ -430,156 +794,103 @@ function ResultsContent() {
           )}
 
           {results.length > 0 && (
-            <div className="h-[calc(100vh-10rem)] overflow-y-auto">
+            <div className="h-[calc(100vh-10rem)] overflow-y-auto" ref={containerRef}>
+              {/* Remove the detailed view at the top since we'll show expanded tiles in the grid */}
+
               {/* Grid of all app previews */}
+              <AnimatePresence>
+                <motion.h2
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className={`text-xl font-semibold mb-4 ${
+                    theme === "dark" ? "text-white" : "text-gray-900"
+                  }`}
+                >
+                  All Designs
+                </motion.h2>
+              </AnimatePresence>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {appTitles.map((title, index) => (
-                  <motion.div
-                    key={title}
-                    className={`rounded-lg overflow-hidden border ${
-                      selectedAppIndex === index 
-                        ? theme === "dark" 
-                          ? "border-indigo-500/50 ring-2 ring-indigo-500/30" 
-                          : "border-indigo-500 ring-2 ring-indigo-300/50"
-                        : theme === "dark"
-                          ? "border-gray-700"
-                          : "border-gray-200"
-                    } transition-all duration-200 cursor-pointer`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={() => handleTileClick(index)}
-                  >
-                    <div className="h-[300px]">
-                      <BrowserContainer theme={theme} title={title}>
-                        {loadingStates[index] ? (
-                          <LoadingContainer>
-                            <LoadingTitle>Generating</LoadingTitle>
-                            <LoadingBar>
-                              <LoadingProgress
-                                animate={{
-                                  x: ["-100%", "100%"],
-                                }}
-                                transition={{
-                                  repeat: Infinity,
-                                  duration: 1.5,
-                                  ease: "linear",
-                                }}
-                              />
-                            </LoadingBar>
-                            <ShortLoadingBar>
-                              <LoadingProgress
-                                animate={{
-                                  x: ["-100%", "100%"],
-                                }}
-                                transition={{
-                                  repeat: Infinity,
-                                  duration: 2,
-                                  ease: "linear",
-                                  delay: 0.2,
-                                }}
-                              />
-                            </ShortLoadingBar>
-                          </LoadingContainer>
-                        ) : (
-                          <CodePreviewPanel
-                            code={editedResults[index] || ""}
-                            onChange={(newCode) => {
-                              const newResults = [...editedResults];
-                              newResults[index] = newCode;
-                              setEditedResults(newResults);
-                            }}
-                            isLoading={loadingStates[index]}
-                            theme={theme}
-                            showControls={false}
-                          />
-                        )}
-                      </BrowserContainer>
-                    </div>
-                  </motion.div>
-                ))}
+                <AnimatePresence>
+                  {appTitles.map((title: string, index: number) => (
+                    <motion.div
+                      key={index}
+                      layout
+                      className={`${
+                        expandedAppIndex === index ? "col-span-full" : ""
+                      }`}
+                    >
+                      <AppTile
+                        title={title}
+                        isSelected={selectedAppIndex === index}
+                        onClick={() => handleTileClick(index)}
+                        onDelete={() => handleDeleteApp(index)}
+                        isLoading={loadingStates[index]}
+                        theme={theme}
+                        isExpanded={expandedAppIndex === index}
+                        code={editedResults[index] || ""}
+                        onChange={(newCode) => {
+                          const newResults = [...editedResults];
+                          newResults[index] = newCode;
+                          setEditedResults(newResults);
+                        }}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
-              
-              {/* Expanded view of selected app */}
-              <motion.div
-                id="detailed-view"
-                className="mt-8"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-              >
-                <h2 className={`text-xl font-semibold mb-4 ${
-                  theme === "dark" ? "text-white" : "text-gray-900"
-                }`}>
-                  {appTitles[selectedAppIndex]} - Detailed View
-                </h2>
-                <div className="h-[500px]">
-                  <BrowserContainer theme={theme} title={`${appTitles[selectedAppIndex]} - Detailed View`}>
-                    {loadingStates[selectedAppIndex] ? (
-                      <LoadingContainer>
-                        <LoadingTitle>Generating</LoadingTitle>
-                        <LoadingBar>
-                          <LoadingProgress
-                            animate={{
-                              x: ["-100%", "100%"],
-                            }}
-                            transition={{
-                              repeat: Infinity,
-                              duration: 1.5,
-                              ease: "linear",
-                            }}
-                          />
-                        </LoadingBar>
-                        <ShortLoadingBar>
-                          <LoadingProgress
-                            animate={{
-                              x: ["-100%", "100%"],
-                            }}
-                            transition={{
-                              repeat: Infinity,
-                              duration: 2,
-                              ease: "linear",
-                              delay: 0.2,
-                            }}
-                          />
-                        </ShortLoadingBar>
-                      </LoadingContainer>
-                    ) : (
-                      <div className="relative h-full">
-                        <CodePreviewPanel
-                          code={editedResults[selectedAppIndex] || ""}
-                          onChange={handleCodeChange}
-                          isLoading={loadingStates[selectedAppIndex]}
-                          theme={theme}
-                          deployButton={
-                            <MockDeployButton 
-                              code={editedResults[selectedAppIndex] || ""} 
-                              theme={theme} 
-                            />
-                          }
-                        />
-                      </div>
-                    )}
-                  </BrowserContainer>
-                </div>
-              </motion.div>
             </div>
           )}
         </div>
       </motion.div>
+      {/* Tools at bottom */}
+      {isVoiceEnabled && (
+        <VoiceInput onInput={(text) => handleVoiceInput(text)} theme={theme} />
+      )}
+
       <PromptInput
         isOpen={isPromptOpen}
         onSubmit={handleNewPrompt}
         isUpdateMode={true}
-        currentCode={editedResults[selectedAppIndex]}
+        model={modelTypes[selectedAppIndex] || "fast"}
+        numGenerations={numGenerations}
+        initialStyle={selectedStyle}
+        onNumGenerationsChange={(num) => {
+          // Update the local state for numGenerations
+          // This doesn't change the context value, just the local config
+          if (config) {
+            config.numGenerations = num;
+          }
+        }}
       />
+
       <PerformanceMetrics
         isOpen={isMetricsOpen}
         onClose={() => setIsMetricsOpen(false)}
         generationTimes={generationTimes}
       />
-      {isVoiceEnabled && (
-        <VoiceInput onInput={(text) => handleVoiceInput(text)} theme={theme} />
+
+      {/* Credit Alert */}
+      {remainingCredits !== null && remainingCredits < 10 && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+          theme === "dark" ? "bg-yellow-900/80 text-yellow-100" : "bg-yellow-100 text-yellow-800"
+        }`}>
+          <div className="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <p className="font-medium">Low Credits Alert</p>
+              <p className="text-sm">You have {remainingCredits} credits remaining. Visit settings to purchase more.</p>
+            </div>
+            <button
+              onClick={() => setShowAlertModal(true)}
+              className="ml-auto text-sm hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
       )}
     </AuroraBackground>
   );
@@ -589,10 +900,26 @@ function ResultsContent() {
 export default function Results() {
   return (
     <Suspense fallback={
-      <div className="w-full h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Loading...</h2>
-          <div className="w-16 h-16 border-4 border-gray-300 border-t-indigo-500 rounded-full animate-spin mx-auto"></div>
+      <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="text-center p-8">
+          <div className="relative mb-8 mx-auto">
+            {/* Multi-layered spinner with different colors and animations */}
+            <div className="w-20 h-20 border-[3px] border-blue-400/10 border-t-blue-500/80 rounded-full animate-spin"></div>
+            <div className="absolute top-0 left-0 w-20 h-20 border-[3px] border-transparent border-r-indigo-400/70 rounded-full animate-spin animate-[spin_1.5s_linear_infinite_0.2s]"></div>
+            <div className="absolute top-[3px] left-[3px] w-[74px] h-[74px] border-[3px] border-transparent border-b-purple-400/60 rounded-full animate-spin animate-[spin_2s_linear_infinite_0.3s] origin-center"></div>
+            <div className="absolute top-[6px] left-[6px] w-[68px] h-[68px] border-[3px] border-transparent border-l-rose-400/50 rounded-full animate-spin animate-[spin_2.5s_linear_infinite_0.4s] origin-center"></div>
+
+            {/* Pulsing dot in the center */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-pulse"></div>
+          </div>
+
+          <h2 className="text-xl font-semibold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
+            Loading Your Designs
+          </h2>
+
+          <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">
+            Preparing your web applications...
+          </p>
         </div>
       </div>
     }>

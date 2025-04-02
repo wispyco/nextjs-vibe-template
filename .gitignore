@@ -123,3 +123,13 @@ dmypy.json
 .DS_Store
 
 .aider*
+
+nextjs-web-app/nextjs-web-app/supabase/.temp
+
+# Redundant database scripts
+nextjs-web-app/scripts/direct-schema-push.sh
+nextjs-web-app/scripts/fix-migration.sh
+nextjs-web-app/scripts/push-to-remote-cli.sh
+nextjs-web-app/scripts/push-to-remote.sh
+nextjs-web-app/scripts/run-fix.sh
+supabase/
