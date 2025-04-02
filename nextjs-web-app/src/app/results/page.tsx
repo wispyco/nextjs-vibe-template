@@ -658,6 +658,14 @@ function ResultsContent() {
       setExpandedAppIndex(index);
     }
     setSelectedAppIndex(index);
+
+    // Scroll to the detailed view
+    setTimeout(() => {
+      document.getElementById('detailed-view')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
   };
 
   // Handle app deletion
@@ -721,17 +729,7 @@ function ResultsContent() {
     }
   };
 
-  // Function to handle clicking on a tile
-  const handleTileClick = (index: number) => {
-    setSelectedAppIndex(index);
-    // Scroll to the detailed view
-    setTimeout(() => {
-      document.getElementById('detailed-view')?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
-  };
+
 
   return (
     <AuroraBackground>
