@@ -375,20 +375,20 @@ function ResultsContent() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className={`w-full h-screen p-6 pb-20 md:p-8 ${
+        className={`w-full min-h-screen p-4 sm:p-6 md:p-8 pb-20 ${
           theme === "dark" ? "bg-gray-900" : ""
         }`}
       >
         <div
-          className={`max-w-7xl mx-auto h-[calc(100vh-2rem)] flex flex-col ${
+          className={`max-w-7xl mx-auto ${
             theme === "light" ? "backdrop-blur-sm" : ""
           }`}
         >
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
             <motion.h1
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className={`text-xl ${
+              className={`text-lg sm:text-xl ${
                 theme === "dark" ? "text-white" : "text-gray-900"
               }`}
             >
@@ -396,7 +396,7 @@ function ResultsContent() {
                 Chaos Coder
               </span>
             </motion.h1>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <ThemeToggle />
               <Link
                 href="/"
@@ -430,9 +430,9 @@ function ResultsContent() {
           )}
 
           {results.length > 0 && (
-            <div className="h-[calc(100vh-10rem)] overflow-y-auto">
+            <div className="space-y-6 sm:space-y-8">
               {/* Grid of all app previews */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {appTitles.map((title, index) => (
                   <motion.div
                     key={title}
@@ -450,7 +450,7 @@ function ResultsContent() {
                     transition={{ delay: index * 0.1 }}
                     onClick={() => handleTileClick(index)}
                   >
-                    <div className="h-[300px]">
+                    <div className="h-[200px] sm:h-[250px] md:h-[300px]">
                       <BrowserContainer theme={theme} title={title}>
                         {loadingStates[index] ? (
                           <LoadingContainer>
@@ -503,17 +503,17 @@ function ResultsContent() {
               {/* Expanded view of selected app */}
               <motion.div
                 id="detailed-view"
-                className="mt-8"
+                className="mt-6 sm:mt-8"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                <h2 className={`text-xl font-semibold mb-4 ${
+                <h2 className={`text-lg sm:text-xl font-semibold mb-4 ${
                   theme === "dark" ? "text-white" : "text-gray-900"
                 }`}>
                   {appTitles[selectedAppIndex]} - Detailed View
                 </h2>
-                <div className="h-[500px]">
+                <div className="h-[300px] sm:h-[400px] md:h-[500px]">
                   <BrowserContainer theme={theme} title={`${appTitles[selectedAppIndex]} - Detailed View`}>
                     {loadingStates[selectedAppIndex] ? (
                       <LoadingContainer>

@@ -189,31 +189,31 @@ export default function Home() {
       )}
       <div className="relative z-10">
         <HeroGeometric badge="" title1="Chaos Coder" title2="9x Dev">
-          <div className="w-full max-w-3xl mx-auto">
+          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
             <div className="relative bg-[#1a1f2e]/80 backdrop-blur-xl rounded-2xl overflow-hidden border border-[#2a3040] shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]">
-              <div className="relative p-6 z-10">
+              <div className="relative p-4 sm:p-6 z-10">
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="E.g., A to-do list app with local storage and dark mode"
-                  className="w-full h-32 p-4 bg-[#1a1f2e]/50 font-sans text-base
-                         border border-[#2a3040] rounded-xl mb-4 
+                  className="w-full h-24 sm:h-32 p-3 sm:p-4 bg-[#1a1f2e]/50 font-sans text-sm sm:text-base
+                         border border-[#2a3040] rounded-xl mb-4
                          focus:ring-2 focus:ring-[#3b82f6]/50 focus:border-transparent resize-none
                          placeholder:text-gray-400/70
                          text-gray-200"
                 />
 
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4">
                   {examples.map((example, i) => (
                     <button
                       key={i}
                       onClick={() => setPrompt(example.prompt)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-                             bg-[#1a1f2e]/50 border border-[#2a3040] text-sm text-gray-300
+                      className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg
+                             bg-[#1a1f2e]/50 border border-[#2a3040] text-xs sm:text-sm text-gray-300
                              hover:border-[#3b82f6]/50 transition-colors"
                     >
                       {example.icon}
-                      {example.label}
+                      <span className="hidden sm:inline">{example.label}</span>
                     </button>
                   ))}
                 </div>

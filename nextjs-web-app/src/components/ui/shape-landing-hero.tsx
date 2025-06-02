@@ -146,15 +146,15 @@ function HeroGeometric({
         />
       </div>
 
-      <div className="relative z-10 container mx-auto px-4 md:px-6 pt-20 ">
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 md:px-8 pt-16 sm:pt-20">
         <motion.div
           custom={0}
           variants={fadeUpVariants}
           initial="hidden"
           animate="visible"
-          className="absolute top-5 left-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] mb-2 md:mb-14"
+          className="absolute top-3 sm:top-5 left-3 sm:left-5 inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/[0.03] border border-white/[0.08] mb-2 md:mb-14"
         >
-          <Circle className="h-3 w-3 fill-green-500/80" />
+          <Circle className="h-2.5 w-2.5 sm:h-3 sm:w-3 fill-green-500/80" />
           {/* <span className="text-base text-white/60 tracking-wide">Chaos Coder</span> */}
         </motion.div>
 
@@ -165,7 +165,7 @@ function HeroGeometric({
             initial="hidden"
             animate="visible"
           >
-            <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold mb-6 md:mb-8 tracking-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-8xl font-bold mb-4 sm:mb-6 md:mb-8 tracking-tight">
               <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-white/80">
                 {badge} {title1}
               </span>
@@ -186,7 +186,7 @@ function HeroGeometric({
             initial="hidden"
             animate="visible"
           >
-            <p className="text-base sm:text-lg md:text-xl text-white/60 mb-8 font-light tracking-wide max-w-xl mx-auto px-4">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white/60 mb-6 sm:mb-8 font-light tracking-wide max-w-xl mx-auto px-4">
               Enter your prompt and we will spin up 9 separate websites
               {" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 ">

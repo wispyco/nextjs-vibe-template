@@ -19,14 +19,21 @@ const Container = styled(motion.div)<{ theme: "light" | "dark" }>`
 
 const Header = styled.div`
   background: #1a1b1e;
-  padding: 8px 16px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border-bottom: 1px solid #2c2e33;
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
   justify-content: space-between;
+  min-height: 36px;
+
+  @media (min-width: 640px) {
+    padding: 8px 16px;
+    gap: 8px;
+    min-height: 40px;
+  }
 `;
 
 const CircleContainer = styled.div`
@@ -38,12 +45,17 @@ const CircleContainer = styled.div`
 `;
 
 const Circle = styled.div<{ color: string }>`
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background-color: ${(props) => props.color};
   opacity: 0.9;
   transition: opacity 0.15s ease;
+
+  @media (min-width: 640px) {
+    width: 12px;
+    height: 12px;
+  }
 
   &:hover {
     opacity: 1;
@@ -53,7 +65,7 @@ const Circle = styled.div<{ color: string }>`
 
 const Title = styled.div<{ theme: "light" | "dark" }>`
   color: ${(props) => (props.theme === "dark" ? "#e2e8f0" : "#f8fafc")};
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
   opacity: 0.8;
   text-align: center;
@@ -61,6 +73,10 @@ const Title = styled.div<{ theme: "light" | "dark" }>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  @media (min-width: 640px) {
+    font-size: 13px;
+  }
 `;
 
 const Content = styled.div<{ theme: "light" | "dark" }>`

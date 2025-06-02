@@ -27,21 +27,21 @@ export async function POST(req: NextRequest) {
   // For debugging only
   console.log(`Rate limit check: IP ${ip} has used ${count} requests`);
 
-  if (count >= 25) {
-    console.log("Rate limit exceeded for IP:", ip);
-    return new Response(
-      JSON.stringify({
-        error: "rate_limit_exceeded",
-        message: "Free limit exceeded. Please create an account to continue.",
-      }),
-      {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-  }
+  // if (count >= 25) {
+  //   console.log("Rate limit exceeded for IP:", ip);
+  //   return new Response(
+  //     JSON.stringify({
+  //       error: "rate_limit_exceeded",
+  //       message: "Free limit exceeded. Please create an account to continue.",
+  //     }),
+  //     {
+  //       status: 429,
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //     }
+  //   );
+  // }
 
   // Parse the request body
   const body = await req.json();
