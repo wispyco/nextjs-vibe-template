@@ -11,6 +11,7 @@ interface DeductionResult {
 }
 
 export async function POST(req: NextRequest) {
+
   try {
     // Use the AuthService to create a server client
     const cookieStore = await cookies();

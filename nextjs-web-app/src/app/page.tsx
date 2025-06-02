@@ -320,9 +320,9 @@ export default function Home() {
           title1="Chaos Coder"
           title2={`${numGenerations}x Dev`}
         >
-          <div className="w-full max-w-3xl mx-auto mb-10">
+          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mb-10">
             <div className="relative bg-[#1a1f2e]/80 backdrop-blur-xl rounded-2xl overflow-hidden border border-[#2a3040] shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]">
-              <div className="relative p-6 z-10">
+              <div className="relative p-4 sm:p-6 z-10">
                 {/* Prompt and Number of Websites Container */}
                 <div className="flex flex-col md:flex-row gap-4 mb-4">
                   {/* Prompt Text Area */}
@@ -331,7 +331,7 @@ export default function Home() {
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       placeholder="E.g., A to-do list app with local storage and dark mode"
-                      className="w-full h-32 p-4 bg-[#1a1f2e]/50 font-sans text-base
+                      className="w-full h-24 sm:h-32 p-3 sm:p-4 bg-[#1a1f2e]/50 font-sans text-sm sm:text-base
                              border border-[#2a3040] rounded-xl
                              focus:ring-2 focus:ring-[#3b82f6]/50 focus:border-transparent resize-none
                              placeholder:text-gray-400/70
@@ -340,24 +340,24 @@ export default function Home() {
                   </div>
 
                   {/* Number of Websites Control */}
-                  <div className="w-full md:w-48 p-3 bg-[#1a1f2e]/30 border border-[#2a3040] rounded-lg self-start h-32 flex flex-col justify-around">
-                    <div className="text-sm bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 font-medium mb-2">
+                  <div className="w-full md:w-48 p-3 bg-[#1a1f2e]/30 border border-[#2a3040] rounded-lg self-start h-24 sm:h-32 flex flex-col justify-around">
+                    <div className="text-xs sm:text-sm bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 font-medium mb-2">
                       Number of Websites:
                     </div>
                     <div className="flex items-center justify-center">
                       <motion.button
                         onClick={decrementGenerations}
                         disabled={numGenerations <= MIN_NUM_GENERATIONS}
-                        className={`p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] ${numGenerations <= MIN_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed text-gray-600' : 'text-gray-400 hover:text-gray-200'} shadow-md`}
+                        className={`p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] ${numGenerations <= MIN_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed text-gray-600' : 'text-gray-400 hover:text-gray-200'} shadow-md`}
                         whileHover={numGenerations > MIN_NUM_GENERATIONS ? { scale: 1.05 } : undefined}
                         whileTap={numGenerations > MIN_NUM_GENERATIONS ? { scale: 0.95 } : undefined}
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
                       >
-                        <FaMinus className="w-3 h-3" />
+                        <FaMinus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                       </motion.button>
-                      <div className="mx-4 flex flex-col items-center">
+                      <div className="mx-3 sm:mx-4 flex flex-col items-center">
                         <motion.div
-                          className="text-4xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-purple-300 to-rose-300 font-bold"
+                          className="text-2xl sm:text-4xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-purple-300 to-rose-300 font-bold"
                           key={numGenerations}
                           initial={{ scale: 1.2, opacity: 0.7 }}
                           animate={{
@@ -373,15 +373,30 @@ export default function Home() {
                       <motion.button
                         onClick={incrementGenerations}
                         disabled={numGenerations >= MAX_NUM_GENERATIONS}
-                        className={`p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] ${numGenerations >= MAX_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed text-gray-600' : 'text-gray-400 hover:text-gray-200'} shadow-md`}
+                        className={`p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] ${numGenerations >= MAX_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed text-gray-600' : 'text-gray-400 hover:text-gray-200'} shadow-md`}
                         whileHover={numGenerations < MAX_NUM_GENERATIONS ? { scale: 1.05 } : undefined}
                         whileTap={numGenerations < MAX_NUM_GENERATIONS ? { scale: 0.95 } : undefined}
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
                       >
-                        <FaPlus className="w-3 h-3" />
+                        <FaPlus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                       </motion.button>
                     </div>
                   </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4">
+                  {examples.map((example, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPrompt(example.prompt)}
+                      className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg
+                             bg-[#1a1f2e]/50 border border-[#2a3040] text-xs sm:text-sm text-gray-300
+                             hover:border-[#3b82f6]/50 transition-colors"
+                    >
+                      {example.icon}
+                      <span className="hidden sm:inline">{example.label}</span>
+                    </button>
+                  ))}
                 </div>
 
                 {errorMessage && (

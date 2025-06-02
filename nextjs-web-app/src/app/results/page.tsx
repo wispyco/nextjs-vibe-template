@@ -689,20 +689,20 @@ function ResultsContent() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className={`w-full h-screen p-6 pb-20 md:p-8 ${
+        className={`w-full min-h-screen p-4 sm:p-6 md:p-8 pb-20 ${
           theme === "dark" ? "bg-gray-900" : ""
         }`}
       >
         <div
-          className={`max-w-7xl mx-auto h-[calc(100vh-2rem)] flex flex-col ${
+          className={`max-w-7xl mx-auto ${
             theme === "light" ? "backdrop-blur-sm" : ""
           }`}
         >
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
             <motion.h1
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className={`text-xl ${
+              className={`text-lg sm:text-xl ${
                 theme === "dark" ? "text-white" : "text-gray-900"
               }`}
             >
@@ -710,6 +710,19 @@ function ResultsContent() {
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 cursor-pointer hover:opacity-80 transition-opacity">
                   Chaos Coder
                 </span>
+              </Link>
+            </motion.h1>
+            <div className="flex items-center gap-3 sm:gap-4">
+              <ThemeToggle />
+              <Link
+                href="/"
+                className={`hover:underline transition-colors ${
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                ← Back to Prompt
               </Link>
             </motion.h1>
           </div>
@@ -731,15 +744,13 @@ function ResultsContent() {
           )}
 
           {results.length > 0 && (
-            <div className="h-[calc(100vh-10rem)] overflow-y-auto" ref={containerRef}>
-              {/* Remove the detailed view at the top since we'll show expanded tiles in the grid */}
-
+            <div className="min-h-[calc(100vh-10rem)] space-y-6 sm:space-y-8" ref={containerRef}>
               {/* Grid of all app previews */}
               <AnimatePresence>
                 <motion.h2
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className={`text-xl font-semibold mb-4 ${
+                  className={`text-lg sm:text-xl font-semibold mb-4 ${
                     theme === "dark" ? "text-white" : "text-gray-900"
                   }`}
                 >
@@ -747,7 +758,7 @@ function ResultsContent() {
                 </motion.h2>
               </AnimatePresence>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 <AnimatePresence>
                   {appTitles.map((title: string, index: number) => (
                     <motion.div
@@ -776,6 +787,7 @@ function ResultsContent() {
                   ))}
                 </AnimatePresence>
               </div>
+
             </div>
           )}
         </div>

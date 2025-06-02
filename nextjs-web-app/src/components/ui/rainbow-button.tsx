@@ -12,7 +12,7 @@ export function RainbowButton({
   return (
     <button
       className={cn(
-        "group relative inline-flex h-11 cursor-pointer items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-gray-900 dark:text-white transition-all duration-300 [background-clip:padding-box,border-box,border-box] [background-origin:border-box] [border:calc(0.08*1rem)_solid_transparent] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:scale-[1.02]",
+        "group relative inline-flex h-10 sm:h-11 cursor-pointer items-center justify-center rounded-xl border-0 bg-[length:200%] px-6 sm:px-8 py-2 font-medium text-sm sm:text-base text-gray-900 dark:text-white transition-all duration-300 [background-clip:padding-box,border-box,border-box] [background-origin:border-box] [border:calc(0.08*1rem)_solid_transparent] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:scale-[1.02]",
 
         // background gradient
         "bg-gradient-to-r from-blue-100 via-blue-300 to-pink-200 dark:from-blue-400 dark:via-indigo-400 dark:to-pink-300",

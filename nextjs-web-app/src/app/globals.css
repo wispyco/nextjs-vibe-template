@@ -74,6 +74,41 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Ensure proper scrolling */
+html {
+  height: auto;
+  min-height: 100%;
+}
+
+body {
+  height: auto;
+  min-height: 100%;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+/* Prevent horizontal scroll on mobile */
+* {
+  box-sizing: border-box;
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 768px) {
+  button,
+  a,
+  input,
+  textarea {
+    min-height: 44px;
+  }
 }
 
 /* Ensure content is visible */
