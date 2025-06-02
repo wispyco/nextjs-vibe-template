@@ -70,6 +70,12 @@ export async function POST(req: NextRequest) {
         },
         targets: [
           {
+            virtual_key: "cerebras-b79172",
+            override_params: {
+              model: "qwen-3-32b",
+            },
+          },
+          {
             virtual_key: "groq-virtual-ke-9479cd",
             override_params: {
               model: "llama-3.2-1b-preview",
@@ -177,6 +183,15 @@ Format the code with proper indentation and spacing for readability.`;
     code = code
       .replace(/^```(?:html|javascript|js)?\n([\s\S]*?)```$/m, "$1")
       .trim();
+
+    // Strip everything before the starting <html> tag (case insensitive)
+    if (typeof code === 'string') {
+      const htmlStartMatch = code.match(/<html[^>]*>/i);
+      if (htmlStartMatch) {
+        const htmlStartIndex = code.indexOf(htmlStartMatch[0]);
+        code = code.substring(htmlStartIndex);
+      }
+    }
 
     return NextResponse.json({ code });
   } catch (error) {
