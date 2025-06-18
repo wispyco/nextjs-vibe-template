@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense, useRef } from "react";
+import { useState, useEffect, Suspense, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuroraBackground } from "@/components/ui/aurora-background";
@@ -116,7 +116,18 @@ function ResultsContent() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const generateApp = async (index: number, promptText: string) => {
+  const getFramework = useCallback((title: string) => {
+    switch (title) {
+      case "Standard Version": return "bootstrap";
+      case "Visual Focus": return "materialize";
+      case "Minimalist Version": return "pure";
+      case "Creative Approach": return "tailwind";
+      case "Accessible Version": return "foundation";
+      default: return "Bulma";
+    }
+  }, []);
+
+  const generateApp = useCallback(async (index: number, promptText: string) => {
     const startTime = performance.now();
     try {
       // Use the style from config instead of predefined frameworks
@@ -247,7 +258,7 @@ function ResultsContent() {
         return newStates;
       });
     }
-  };
+  }, [getFramework, appTitles, variations]);
 
   const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false, customNumGenerations?: number) => {
     if (isUpdate) {

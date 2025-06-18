@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Editor from "@monaco-editor/react";
 import {
@@ -28,7 +28,53 @@ interface AppTileProps {
   onChange?: (newCode: string) => void;
 }
 
-export default function AppTile({
+interface FrameworkInfo {
+  icon: IconType;
+  description: string;
+  rightIcon: IconType;
+  framework: string;
+  iconColor: string;
+}
+
+const frameworkMap: Record<string, FrameworkInfo> = {
+  "Standard Version": {
+    icon: FaBootstrap,
+    description: "Built with Bootstrap for robust, responsive design",
+    rightIcon: FaCode,
+    framework: "bootstrap",
+    iconColor: "#7952b3",
+  },
+  "Visual Focus": {
+    icon: FaPalette,
+    description: "Using Materialize for beautiful Material Design",
+    rightIcon: FaCode,
+    framework: "materialize",
+    iconColor: "#eb7077",
+  },
+  "Minimalist Version": {
+    icon: FaLeaf,
+    description: "Pure CSS for lightweight, clean aesthetics",
+    rightIcon: FaCode,
+    framework: "pure",
+    iconColor: "#3cb371",
+  },
+  "Creative Approach": {
+    icon: FaWind,
+    description: "Powered by Tailwind CSS for modern utility-first design",
+    rightIcon: FaCode,
+    framework: "tailwind",
+    iconColor: "#38bdf8",
+  },
+  "Enhanced Version": {
+    icon: FaShieldAlt,
+    description: "Enterprise-ready with Bulma components",
+    rightIcon: FaCode,
+    framework: "Bulma",
+    iconColor: "#06c",
+  },
+};
+
+const AppTile = memo(function AppTile({
   title,
   isSelected,
   onClick,
@@ -62,7 +108,7 @@ export default function AppTile({
     }
   };
 
-  const getBgColor = () => {
+  const getBgColor = useCallback(() => {
     if (isPlaceholder) {
       return theme === "dark"
         ? "bg-gray-800/50 hover:bg-gray-700/70 border-2 border-dashed border-gray-600"
@@ -74,7 +120,7 @@ export default function AppTile({
     return theme === "dark"
       ? "bg-gray-800 hover:bg-gray-700"
       : "bg-white hover:bg-gray-50 border border-gray-200";
-  };
+  }, [isSelected, theme]);
 
   // Mac-style window controls handler
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -464,4 +510,6 @@ export default function AppTile({
       </AnimatePresence>
     </motion.div>
   );
-}
+});
+
+export default AppTile;

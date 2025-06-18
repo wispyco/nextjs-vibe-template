@@ -5,10 +5,22 @@
 export class RateLimiter {
   private static instance: RateLimiter;
   private counts = new Map<string, number>();
+  private intervalId: NodeJS.Timeout | null = null;
 
   constructor() {
-    // Reset counts every hour
-    setInterval(() => this.counts.clear(), 60 * 60 * 1000);
+    // Reset counts every hour - store interval ID for cleanup
+    this.intervalId = setInterval(() => this.counts.clear(), 60 * 60 * 1000);
+  }
+
+  /**
+   * Clean up resources when the instance is no longer needed
+   */
+  destroy() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.counts.clear();
   }
 
   static getInstance() {
