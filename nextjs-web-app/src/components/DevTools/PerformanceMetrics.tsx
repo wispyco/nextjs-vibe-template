@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { FaKeyboard, FaTimes, FaChartLine } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
+import { memo, useMemo } from "react";
 
 interface PerformanceMetricsProps {
   isOpen: boolean;
@@ -43,15 +44,18 @@ const frameworkNames = [
   "Bulma",
 ];
 
-export default function PerformanceMetrics({
+const PerformanceMetrics = memo(function PerformanceMetrics({
   isOpen,
   onClose,
   generationTimes,
 }: PerformanceMetricsProps) {
   const { theme } = useTheme();
-  const times = Object.values(generationTimes);
-  const averageTime =
-    times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0;
+
+  const { times, averageTime } = useMemo(() => {
+    const times = Object.values(generationTimes);
+    const averageTime = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0;
+    return { times, averageTime };
+  }, [generationTimes]);
 
   return (
     <AnimatePresence>
@@ -267,4 +271,6 @@ export default function PerformanceMetrics({
       )}
     </AnimatePresence>
   );
-}
+});
+
+export default PerformanceMetrics;

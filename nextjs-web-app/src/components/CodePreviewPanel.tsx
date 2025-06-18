@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Editor from '@monaco-editor/react';
+import { useEffect, useState, useCallback, memo, lazy, Suspense } from 'react';
+import LazyLoad from './LazyLoad';
+
+// Lazy load Monaco Editor to reduce initial bundle size
+const Editor = lazy(() => import('@monaco-editor/react'));
 
 interface CodePreviewPanelProps {
   code: string;
@@ -13,10 +16,10 @@ interface CodePreviewPanelProps {
   showControls?: boolean;
 }
 
-export default function CodePreviewPanel({ 
-  code, 
-  title, 
-  onChange, 
+const CodePreviewPanel = memo(function CodePreviewPanel({
+  code,
+  title,
+  onChange,
   isLoading = false,
   theme,
   deployButton,
@@ -30,13 +33,17 @@ export default function CodePreviewPanel({
     setEditedCode(code);
   }, [code]);
 
-  const handleCodeChange = (value: string | undefined) => {
+  const handleCodeChange = useCallback((value: string | undefined) => {
     if (value !== undefined) {
       setEditedCode(value);
       setPreviewKey(prev => prev + 1);
       onChange?.(value);
     }
-  };
+  }, [onChange]);
+
+  const handleTabChange = useCallback((tab: 'preview' | 'code') => {
+    setActiveTab(tab);
+  }, []);
 
   return (
     <div className="h-full flex flex-col">
@@ -45,7 +52,7 @@ export default function CodePreviewPanel({
           <div>{deployButton}</div>
           <div className="space-x-2">
             <button
-              onClick={() => setActiveTab('preview')}
+              onClick={() => handleTabChange('preview')}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                 activeTab === 'preview'
                   ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
@@ -55,7 +62,7 @@ export default function CodePreviewPanel({
               Preview
             </button>
             <button
-              onClick={() => setActiveTab('code')}
+              onClick={() => handleTabChange('code')}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                 activeTab === 'code'
                   ? theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
@@ -79,25 +86,47 @@ export default function CodePreviewPanel({
           </div>
         ) : (
           <div className="h-full">
-            <Editor
-              height="100%"
-              defaultLanguage="html"
-              theme={theme === 'dark' ? "vs-dark" : "light"}
-              value={editedCode}
-              onChange={handleCodeChange}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                lineNumbers: 'on',
-                roundedSelection: false,
-                scrollBeyondLastLine: false,
-                readOnly: isLoading,
-                automaticLayout: true,
-              }}
-            />
+            <LazyLoad
+              fallback={
+                <div className="h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Loading editor...</p>
+                  </div>
+                </div>
+              }
+            >
+              <Suspense fallback={
+                <div className="h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Loading editor...</p>
+                  </div>
+                </div>
+              }>
+                <Editor
+                  height="100%"
+                  defaultLanguage="html"
+                  theme={theme === 'dark' ? "vs-dark" : "light"}
+                  value={editedCode}
+                  onChange={handleCodeChange}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    roundedSelection: false,
+                    scrollBeyondLastLine: false,
+                    readOnly: isLoading,
+                    automaticLayout: true,
+                  }}
+                />
+              </Suspense>
+            </LazyLoad>
           </div>
         )}
       </div>
     </div>
   );
-}
+});
+
+export default CodePreviewPanel;

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { memo, useCallback } from "react";
 import {
   FaBootstrap,
   FaWind,
@@ -65,7 +66,7 @@ const frameworkMap: Record<string, FrameworkInfo> = {
   },
 };
 
-export default function AppTile({
+const AppTile = memo(function AppTile({
   title,
   isSelected,
   onClick,
@@ -76,14 +77,14 @@ export default function AppTile({
   const LeftIcon = framework.icon;
   const RightIcon = framework.rightIcon;
 
-  const getBgColor = () => {
+  const getBgColor = useCallback(() => {
     if (isSelected) {
       return "bg-[#2563EB] shadow-lg shadow-blue-500/20";
     }
     return theme === "dark"
       ? "bg-gray-800 hover:bg-gray-700"
       : "bg-white hover:bg-gray-50 border border-gray-200";
-  };
+  }, [isSelected, theme]);
 
   return (
     <motion.div
@@ -163,4 +164,6 @@ export default function AppTile({
       )}
     </motion.div>
   );
-}
+});
+
+export default AppTile;
