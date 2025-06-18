@@ -66,7 +66,7 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
           const currentTranscript = Array.from(event.results)
             .map((result) => result[0].transcript)
             .join("");
-          
+
           setTranscript(currentTranscript);
 
           // Clear existing timeout
@@ -114,8 +114,16 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
     }
 
     return () => {
+      // Cleanup timeout
       if (timeoutId) {
         clearTimeout(timeoutId);
+      }
+      // Cleanup speech recognition
+      if (recognition) {
+        recognition.stop();
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
       }
     };
   }, [onInput, timeoutId, isListening]);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AuroraBackground } from "@/components/ui/aurora-background";
@@ -124,21 +124,21 @@ function ResultsContent() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const generateApp = async (index: number, promptText: string) => {
+  const getFramework = useCallback((title: string) => {
+    switch (title) {
+      case "Standard Version": return "bootstrap";
+      case "Visual Focus": return "materialize";
+      case "Minimalist Version": return "pure";
+      case "Creative Approach": return "tailwind";
+      case "Accessible Version": return "foundation";
+      default: return "Bulma";
+    }
+  }, []);
+
+  const generateApp = useCallback(async (index: number, promptText: string) => {
     const startTime = performance.now();
     try {
-      const framework =
-        appTitles[index] === "Standard Version"
-          ? "bootstrap"
-          : appTitles[index] === "Visual Focus"
-          ? "materialize"
-          : appTitles[index] === "Minimalist Version"
-          ? "pure"
-          : appTitles[index] === "Creative Approach"
-          ? "tailwind"
-          : appTitles[index] === "Accessible Version"
-          ? "foundation"
-          : "Bulma";
+      const framework = getFramework(appTitles[index]);
 
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -196,7 +196,7 @@ function ResultsContent() {
         return newStates;
       });
     }
-  };
+  }, [getFramework, appTitles, variations]);
 
   const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false) => {
     if (isUpdate) {
@@ -341,9 +341,19 @@ function ResultsContent() {
       return;
     }
 
-    // Generate all apps in parallel
-    Promise.all(variations.map((_, index) => generateApp(index, prompt)));
-  }, [searchParams]);
+    // Generate apps with throttling to prevent overwhelming the system
+    const generateWithThrottle = async () => {
+      for (let i = 0; i < variations.length; i++) {
+        generateApp(i, prompt);
+        // Add small delay between requests to reduce system load
+        if (i < variations.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+    };
+
+    generateWithThrottle();
+  }, [searchParams, generateApp, variations]);
 
   const handleCodeChange = (newCode: string) => {
     const newResults = [...editedResults];
