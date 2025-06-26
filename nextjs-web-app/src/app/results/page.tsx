@@ -53,10 +53,37 @@ const ShortLoadingBar = styled(LoadingBar)`
   max-width: 300px;
 `;
 
+// Move constants outside component to prevent recreation on every render
+const NUM_APPS = 9; // Single variable to control number of apps
+
+const variations = [
+  "",
+  "Make it visually appealing and use a different framework than the other versions.",
+  "Focus on simplicity and performance. Use minimal dependencies.",
+  "Add some creative features that might not be explicitly mentioned in the prompt.",
+  "Create an enhanced version with additional features and modern design patterns.",
+  "Build a version with accessibility and internationalization features in mind.",
+  "Create a version optimized for mobile devices with responsive design.",
+  "Build a version with advanced animations and interactive elements.",
+  "Create a version with data visualization capabilities.",
+  "Build a version with offline functionality and progressive web app features.",
+];
+
+const appTitles = [
+  "Standard Version",
+  "Visual Focus",
+  "Minimalist Version",
+  "Creative Approach",
+  "Enhanced Version",
+  "Accessible Version",
+  "Mobile Optimized",
+  "Interactive Version",
+  "Data Visualization",
+  "Progressive Web App",
+];
+
 // Wrapper component that uses searchParams
 function ResultsContent() {
-  const NUM_APPS = 9; // Single variable to control number of apps
-  
   const searchParams = useSearchParams();
   const [loadingStates, setLoadingStates] = useState<boolean[]>(
     new Array(NUM_APPS).fill(true)
@@ -75,32 +102,6 @@ function ResultsContent() {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [showSignupModal, setShowSignupModal] = useState(false);
   const { theme } = useTheme();
-
-  const variations = [
-    "",
-    "Make it visually appealing and use a different framework than the other versions.",
-    "Focus on simplicity and performance. Use minimal dependencies.",
-    "Add some creative features that might not be explicitly mentioned in the prompt.",
-    "Create an enhanced version with additional features and modern design patterns.",
-    "Build a version with accessibility and internationalization features in mind.",
-    "Create a version optimized for mobile devices with responsive design.",
-    "Build a version with advanced animations and interactive elements.",
-    "Create a version with data visualization capabilities.",
-    "Build a version with offline functionality and progressive web app features.",
-  ];
-
-  const appTitles = [
-    "Standard Version",
-    "Visual Focus",
-    "Minimalist Version",
-    "Creative Approach",
-    "Enhanced Version",
-    "Accessible Version",
-    "Mobile Optimized",
-    "Interactive Version",
-    "Data Visualization",
-    "Progressive Web App",
-  ];
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -196,29 +197,18 @@ function ResultsContent() {
         return newStates;
       });
     }
-  }, [getFramework, appTitles, variations]);
+  }, [getFramework]); // Remove appTitles and variations from dependencies since they're now constants
 
   const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false) => {
     if (isUpdate) {
       if (chaosMode) {
         // Update all apps in chaos mode
-        setLoadingStates(new Array(6).fill(true));
+        setLoadingStates(new Array(NUM_APPS).fill(true));
         
         try {
           // Create an array of promises for all apps
           const updatePromises = appTitles.map(async (title, index) => {
-            const framework =
-              title === "Standard Version"
-                ? "bootstrap"
-                : title === "Visual Focus"
-                ? "materialize"
-                : title === "Minimalist Version"
-                ? "pure"
-                : title === "Creative Approach"
-                ? "tailwind"
-                : title === "Accessible Version"
-                ? "foundation"
-                : "Bulma";
+            const framework = getFramework(title);
 
             const response = await fetch("/api/generate", {
               method: "POST",
@@ -259,7 +249,7 @@ function ResultsContent() {
             err instanceof Error ? err.message : "Failed to update applications in chaos mode"
           );
         } finally {
-          setLoadingStates(new Array(6).fill(false));
+          setLoadingStates(new Array(NUM_APPS).fill(false));
         }
       } else {
         // Update only the selected app (original behavior)
@@ -270,18 +260,7 @@ function ResultsContent() {
         });
 
         try {
-          const framework =
-            appTitles[selectedAppIndex] === "Standard Version"
-              ? "bootstrap"
-              : appTitles[selectedAppIndex] === "Visual Focus"
-              ? "materialize"
-              : appTitles[selectedAppIndex] === "Minimalist Version"
-              ? "pure"
-              : appTitles[selectedAppIndex] === "Creative Approach"
-              ? "tailwind"
-              : appTitles[selectedAppIndex] === "Accessible Version"
-              ? "foundation"
-              : "Bulma";
+          const framework = getFramework(appTitles[selectedAppIndex]);
 
           const response = await fetch("/api/generate", {
             method: "POST",
@@ -353,7 +332,7 @@ function ResultsContent() {
     };
 
     generateWithThrottle();
-  }, [searchParams, generateApp, variations]);
+  }, [searchParams, generateApp]); // Remove variations from dependencies since it's now a constant
 
   const handleCodeChange = (newCode: string) => {
     const newResults = [...editedResults];
