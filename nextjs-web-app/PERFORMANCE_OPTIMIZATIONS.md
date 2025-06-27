@@ -27,22 +27,16 @@ This document outlines the performance optimizations implemented to reduce resou
 
 ## New Features Added
 
-### 1. Performance Monitoring (`src/utils/performance.ts`)
-- Real-time monitoring of long tasks, layout shifts, and LCP
-- Memory usage tracking
-- Device capability detection
-- Performance measurement utilities
-
-### 2. Debouncing (`src/hooks/useDebounce.ts`)
+### 1. Debouncing (`src/hooks/useDebounce.ts`)
 - Custom hooks for debouncing values and callbacks
 - Prevents excessive API calls and function executions
 
-### 3. Lazy Loading (`src/components/LazyLoad.tsx`)
+### 2. Lazy Loading (`src/components/LazyLoad.tsx`)
 - Intersection Observer-based lazy loading
 - Reduces initial render load
 - Configurable thresholds and margins
 
-### 4. Bundle Optimization (`next.config.ts`)
+### 3. Bundle Optimization (`next.config.ts`)
 - Code splitting for vendor libraries
 - Separate chunks for heavy dependencies (Monaco Editor, Framer Motion)
 - Image optimization with WebP/AVIF formats
@@ -64,19 +58,7 @@ This document outlines the performance optimizations implemented to reduce resou
 - Hardware-accelerated animations with reduced motion support
 - Memoized components preventing unnecessary re-renders
 
-## Monitoring and Debugging
-
-### Performance Monitor Usage
-```typescript
-import { PerformanceMonitor, measurePerformance } from '@/utils/performance';
-
-// Monitor a function
-const result = measurePerformance('apiCall', () => fetchData());
-
-// Get metrics
-const monitor = PerformanceMonitor.getInstance();
-const avgTime = monitor.getAverageMetric('apiCall');
-```
+## Usage Examples
 
 ### Debouncing Usage
 ```typescript
@@ -116,14 +98,7 @@ import LazyLoad from '@/components/LazyLoad';
 7. **API Throttling**: Prevent overwhelming backend services
 8. **Accessibility**: Support for reduced motion preferences
 
-## Monitoring Metrics
 
-The application now tracks:
-- Long tasks (>50ms blocking main thread)
-- Layout shifts (CLS)
-- Largest Contentful Paint (LCP)
-- Memory usage (Chrome only)
-- Custom performance metrics
 
 ## Future Optimizations
 

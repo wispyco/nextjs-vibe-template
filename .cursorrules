@@ -9,6 +9,19 @@ use `gh` cli to do github actions
 
 use playwright MCP for testing the the app through the frontend
 with email: hello@techfren.net password: qweQWE123!@#
+---
+**Instruction:**
+
+"When you need to view the output of a command or the content of a file that might be long, you MUST use non-interactive methods. Avoid commands that launch pagers like `less` or `more` by default.
+
+*   **Viewing Files:** Instead of `less file.txt`, use `cat file.txt`. If the output is expected to be very large and you only need the beginning or end, use `head -n 50 file.txt` or `tail -n 50 file.txt`.
+*   **Viewing Git Diffs:** Instead of `git diff`, use `git --no-pager diff`. This will print the entire diff to standard output. If needed, you can redirect this: `git --no-pager diff > my_diff.patch`.
+*   **Viewing Git Logs:** Instead of `git log`, use `git --no-pager log` or `git --no-pager log --oneline -n 20` (to limit output).
+*   **Viewing Man Pages:** Instead of `man command`, you can try redirecting the output: `man command | cat` or set the pager temporarily: `PAGER=cat man command`. Alternatively, redirect to a file: `man command > command_manual.txt` and then `cat command_manual.txt`.
+*   **System Monitoring:** Instead of `top` or `htop`, use commands that provide a snapshot, like `ps aux` or `top -b -n 1` (batch mode, one iteration).
+*   **Editing Files:** Do not use interactive editors like `vi` or `nano`. Use commands like `sed`, `awk`, `echo '...' >> file`, or script execution (e.g., Python) for modifications.
+
+Always prioritize commands that print their full output to standard output and then exit immediately."
 
 ---
 # Specify the following for Cursor rules

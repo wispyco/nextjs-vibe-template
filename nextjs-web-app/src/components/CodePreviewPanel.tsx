@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, memo, lazy, Suspense } from 'react';
+import { motion } from 'framer-motion';
+import { FaExpand } from 'react-icons/fa';
 import LazyLoad from './LazyLoad';
 
 // Lazy load Monaco Editor to reduce initial bundle size
@@ -14,6 +16,7 @@ interface CodePreviewPanelProps {
   theme: "light" | "dark";
   deployButton?: React.ReactNode;
   showControls?: boolean;
+  onMaximize?: () => void;
 }
 
 const CodePreviewPanel = memo(function CodePreviewPanel({
@@ -23,7 +26,8 @@ const CodePreviewPanel = memo(function CodePreviewPanel({
   isLoading = false,
   theme,
   deployButton,
-  showControls = true
+  showControls = true,
+  onMaximize
 }: CodePreviewPanelProps) {
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [editedCode, setEditedCode] = useState(code);
@@ -49,7 +53,25 @@ const CodePreviewPanel = memo(function CodePreviewPanel({
     <div className="h-full flex flex-col">
       {showControls && (
         <div className="flex items-center justify-between px-4 py-2">
-          <div>{deployButton}</div>
+          <div className="flex items-center gap-2">
+            {onMaximize && (
+              <motion.button
+                onClick={onMaximize}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm ${
+                  theme === "dark"
+                    ? "bg-gray-800 hover:bg-gray-700 text-gray-300"
+                    : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                }`}
+                title="Maximize Preview"
+              >
+                <FaExpand className="w-3 h-3" />
+                Maximize
+              </motion.button>
+            )}
+            {deployButton}
+          </div>
           <div className="space-x-2">
             <button
               onClick={() => handleTabChange('preview')}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import { FaRocket, FaTimes } from 'react-icons/fa';
@@ -17,15 +17,6 @@ const FullscreenPreview = styled.div`
   z-index: 9999;
   background: white;
   overflow: auto;
-  display: flex;
-  flex-direction: column;
-`;
-
-const PreviewIframe = styled.iframe`
-  flex: 1;
-  border: none;
-  width: 100%;
-  height: 100%;
 `;
 
 const CloseButton = styled.button`
@@ -53,7 +44,6 @@ const CloseButton = styled.button`
 
 export default function MockDeployButton({ code, theme }: MockDeployButtonProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const handleDeploy = () => {
     setIsFullscreen(true);
@@ -62,20 +52,6 @@ export default function MockDeployButton({ code, theme }: MockDeployButtonProps)
   const closeFullscreen = () => {
     setIsFullscreen(false);
   };
-
-  // Safely render code in an iframe when the component is shown
-  useEffect(() => {
-    if (isFullscreen && iframeRef.current) {
-      const iframe = iframeRef.current;
-      const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
-      
-      if (iframeDocument) {
-        iframeDocument.open();
-        iframeDocument.write(code);
-        iframeDocument.close();
-      }
-    }
-  }, [isFullscreen, code]);
 
   return (
     <>
@@ -95,13 +71,7 @@ export default function MockDeployButton({ code, theme }: MockDeployButtonProps)
 
       {isFullscreen && (
         <>
-          <FullscreenPreview>
-            <PreviewIframe 
-              ref={iframeRef} 
-              sandbox="allow-same-origin" 
-              title="Code Preview" 
-            />
-          </FullscreenPreview>
+          <FullscreenPreview dangerouslySetInnerHTML={{ __html: code }} />
           <CloseButton onClick={closeFullscreen}>
             <FaTimes />
           </CloseButton>
