@@ -88,45 +88,39 @@ export default function Home() {
   const examples = [
     {
       prompt:
-        "A web app for creating a simple to-do list without user authentication",
+        "A Pokédex web app that displays Pokémon information with search and filter functionality",
       icon: <FaTasks className="w-4 h-4" />,
-      label: "Simple To-Do List",
+      label: "Pokédex",
     },
     {
       prompt:
-        "A web app for creating a simple blog with a list of posts, without user authentication",
+        "A Father's Day card web app with customizable messages and designs",
       icon: <FaBlog className="w-4 h-4" />,
-      label: "Simple Blog",
+      label: "Father's Day Card",
     },
     {
       prompt:
-        "A web app for creating a simple portfolio with a list of projects, without user authentication",
+        "A Happy Birthday gift web app for [Insert name here] with personalized wishes and interactive elements",
       icon: <FaUserTie className="w-4 h-4" />,
-      label: "Simple Portfolio",
+      label: "Happy Birthday Gift",
     },
     {
       prompt:
-        "A web app for displaying a hardware diagram from a given .asc file, context:",
+        "A classic Tetris game web app with falling blocks, line clearing, and scoring",
       icon: <FaRobot className="w-4 h-4" />,
-      label: "Hardware Diagram",
+      label: "Tetris Game",
     },
     {
       prompt:
-        "A web app for generating a simple website for a small business, with a homepage, about page, and contact page, without user authentication",
+        "A Snake game web app with arrow key controls, food collection, and high score tracking",
       icon: <FaStore className="w-4 h-4" />,
-      label: "Simple Website for Small Business",
+      label: "Snake Game",
     },
     {
       prompt:
-        "A web app for creating a simple chatbot that can answer basic questions about a company's products and services, without user authentication",
-      icon: <FaRobot className="w-4 h-4" />,
-      label: "Simple Chatbot",
-    },
-    {
-      prompt:
-        "A web app for creating a simple quiz or trivia game with multiple choice questions and scoring, without user authentication",
+        "A classic Pong game web app with paddle controls, ball physics, and two-player mode",
       icon: <FaQuestionCircle className="w-4 h-4" />,
-      label: "Simple Quiz or Trivia Game",
+      label: "Pong Game",
     },
   ];
   const [isLoading, setIsLoading] = useState(false);

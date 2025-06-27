@@ -13,6 +13,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import PromptInput from "@/components/DevTools/PromptInput";
 import PerformanceMetrics from "@/components/DevTools/PerformanceMetrics";
 import VoiceInput from "@/components/DevTools/VoiceInput";
+import FullscreenPreview from "@/components/FullscreenPreview";
 import MockDeployButton from "@/components/MockDeployButton";
 import { SignupModal } from "@/components/SignupModal";
 import styled from "styled-components";
@@ -101,6 +102,7 @@ function ResultsContent() {
   }>({});
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   const { theme } = useTheme();
 
   // Handle keyboard shortcuts
@@ -343,13 +345,22 @@ function ResultsContent() {
   // Function to handle clicking on a tile
   const handleTileClick = (index: number) => {
     setSelectedAppIndex(index);
-    // Scroll to the detailed view
+    // Scroll to the detailed view (now at the top)
     setTimeout(() => {
-      document.getElementById('detailed-view')?.scrollIntoView({ 
+      document.getElementById('detailed-view')?.scrollIntoView({
         behavior: 'smooth',
         block: 'start'
       });
     }, 100);
+  };
+
+  // Function to handle fullscreen toggle
+  const handleMaximize = () => {
+    setIsFullscreenOpen(true);
+  };
+
+  const handleCloseFullscreen = () => {
+    setIsFullscreenOpen(false);
   };
 
   return (
@@ -420,15 +431,84 @@ function ResultsContent() {
 
           {results.length > 0 && (
             <div className="space-y-6 sm:space-y-8">
-              {/* Grid of all app previews */}
+              {/* Expanded view of selected app - moved to top */}
+              <motion.div
+                id="detailed-view"
+                className="mb-6 sm:mb-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <h2 className={`text-lg sm:text-xl font-semibold mb-4 ${
+                  theme === "dark" ? "text-white" : "text-gray-900"
+                }`}>
+                  {appTitles[selectedAppIndex]} - Detailed View
+                </h2>
+                <div className="h-[300px] sm:h-[400px] md:h-[500px]">
+                  <BrowserContainer
+                    theme={theme}
+                    title={`${appTitles[selectedAppIndex]} - Detailed View`}
+                    onMaximize={handleMaximize}
+                  >
+                    {loadingStates[selectedAppIndex] ? (
+                      <LoadingContainer>
+                        <LoadingTitle>Generating</LoadingTitle>
+                        <LoadingBar>
+                          <LoadingProgress
+                            animate={{
+                              x: ["-100%", "100%"],
+                            }}
+                            transition={{
+                              repeat: Infinity,
+                              duration: 1.5,
+                              ease: "linear",
+                            }}
+                          />
+                        </LoadingBar>
+                        <ShortLoadingBar>
+                          <LoadingProgress
+                            animate={{
+                              x: ["-100%", "100%"],
+                            }}
+                            transition={{
+                              repeat: Infinity,
+                              duration: 2,
+                              ease: "linear",
+                              delay: 0.2,
+                            }}
+                          />
+                        </ShortLoadingBar>
+                      </LoadingContainer>
+                    ) : (
+                      <div className="relative h-full">
+                        <CodePreviewPanel
+                          code={editedResults[selectedAppIndex] || ""}
+                          onChange={handleCodeChange}
+                          isLoading={loadingStates[selectedAppIndex]}
+                          theme={theme}
+                          onMaximize={handleMaximize}
+                          deployButton={
+                            <MockDeployButton
+                              code={editedResults[selectedAppIndex] || ""}
+                              theme={theme}
+                            />
+                          }
+                        />
+                      </div>
+                    )}
+                  </BrowserContainer>
+                </div>
+              </motion.div>
+
+              {/* Grid of all app previews - moved below detailed view */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {appTitles.map((title, index) => (
                   <motion.div
                     key={title}
                     className={`rounded-lg overflow-hidden border ${
-                      selectedAppIndex === index 
-                        ? theme === "dark" 
-                          ? "border-indigo-500/50 ring-2 ring-indigo-500/30" 
+                      selectedAppIndex === index
+                        ? theme === "dark"
+                          ? "border-indigo-500/50 ring-2 ring-indigo-500/30"
                           : "border-indigo-500 ring-2 ring-indigo-300/50"
                         : theme === "dark"
                           ? "border-gray-700"
@@ -440,7 +520,14 @@ function ResultsContent() {
                     onClick={() => handleTileClick(index)}
                   >
                     <div className="h-[200px] sm:h-[250px] md:h-[300px]">
-                      <BrowserContainer theme={theme} title={title}>
+                      <BrowserContainer
+                        theme={theme}
+                        title={title}
+                        onMaximize={() => {
+                          setSelectedAppIndex(index);
+                          handleMaximize();
+                        }}
+                      >
                         {loadingStates[index] ? (
                           <LoadingContainer>
                             <LoadingTitle>Generating</LoadingTitle>
@@ -488,70 +575,6 @@ function ResultsContent() {
                   </motion.div>
                 ))}
               </div>
-              
-              {/* Expanded view of selected app */}
-              <motion.div
-                id="detailed-view"
-                className="mt-6 sm:mt-8"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-              >
-                <h2 className={`text-lg sm:text-xl font-semibold mb-4 ${
-                  theme === "dark" ? "text-white" : "text-gray-900"
-                }`}>
-                  {appTitles[selectedAppIndex]} - Detailed View
-                </h2>
-                <div className="h-[300px] sm:h-[400px] md:h-[500px]">
-                  <BrowserContainer theme={theme} title={`${appTitles[selectedAppIndex]} - Detailed View`}>
-                    {loadingStates[selectedAppIndex] ? (
-                      <LoadingContainer>
-                        <LoadingTitle>Generating</LoadingTitle>
-                        <LoadingBar>
-                          <LoadingProgress
-                            animate={{
-                              x: ["-100%", "100%"],
-                            }}
-                            transition={{
-                              repeat: Infinity,
-                              duration: 1.5,
-                              ease: "linear",
-                            }}
-                          />
-                        </LoadingBar>
-                        <ShortLoadingBar>
-                          <LoadingProgress
-                            animate={{
-                              x: ["-100%", "100%"],
-                            }}
-                            transition={{
-                              repeat: Infinity,
-                              duration: 2,
-                              ease: "linear",
-                              delay: 0.2,
-                            }}
-                          />
-                        </ShortLoadingBar>
-                      </LoadingContainer>
-                    ) : (
-                      <div className="relative h-full">
-                        <CodePreviewPanel
-                          code={editedResults[selectedAppIndex] || ""}
-                          onChange={handleCodeChange}
-                          isLoading={loadingStates[selectedAppIndex]}
-                          theme={theme}
-                          deployButton={
-                            <MockDeployButton 
-                              code={editedResults[selectedAppIndex] || ""} 
-                              theme={theme} 
-                            />
-                          }
-                        />
-                      </div>
-                    )}
-                  </BrowserContainer>
-                </div>
-              </motion.div>
             </div>
           )}
         </div>
@@ -570,6 +593,13 @@ function ResultsContent() {
       {isVoiceEnabled && (
         <VoiceInput onInput={(text) => handleVoiceInput(text)} theme={theme} />
       )}
+      <FullscreenPreview
+        isOpen={isFullscreenOpen}
+        onClose={handleCloseFullscreen}
+        code={editedResults[selectedAppIndex] || ""}
+        title={appTitles[selectedAppIndex]}
+        theme={theme}
+      />
     </AuroraBackground>
   );
 }

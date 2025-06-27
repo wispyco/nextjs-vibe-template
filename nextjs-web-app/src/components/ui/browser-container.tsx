@@ -44,13 +44,14 @@ const CircleContainer = styled.div`
   min-width: 60px;
 `;
 
-const Circle = styled.div<{ color: string }>`
+const Circle = styled.div<{ color: string; clickable?: boolean }>`
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background-color: ${(props) => props.color};
   opacity: 0.9;
-  transition: opacity 0.15s ease;
+  transition: all 0.15s ease;
+  cursor: ${(props) => props.clickable ? 'pointer' : 'default'};
 
   @media (min-width: 640px) {
     width: 12px;
@@ -59,7 +60,7 @@ const Circle = styled.div<{ color: string }>`
 
   &:hover {
     opacity: 1;
-    transform: scale(1.1);
+    transform: scale(${(props) => props.clickable ? '1.2' : '1.1'});
   }
 `;
 
@@ -91,12 +92,14 @@ interface BrowserContainerProps {
   children: React.ReactNode;
   theme: "light" | "dark";
   title?: string;
+  onMaximize?: () => void;
 }
 
 export const BrowserContainer = ({
   children,
   theme,
   title,
+  onMaximize,
 }: BrowserContainerProps) => {
   return (
     <Container
@@ -109,7 +112,11 @@ export const BrowserContainer = ({
         <CircleContainer>
           <Circle color="#FF5F57" />
           <Circle color="#FFBD2E" />
-          <Circle color="#28C840" />
+          <Circle
+            color="#28C840"
+            clickable={!!onMaximize}
+            onClick={onMaximize}
+          />
         </CircleContainer>
         {title && <Title theme={theme}>{title}</Title>}
         <div style={{ width: '60px' }}></div> {/* Spacer for balance */}
