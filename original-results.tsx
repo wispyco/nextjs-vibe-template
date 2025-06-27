@@ -105,20 +105,36 @@ function ResultsContent() {
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   const { theme } = useTheme();
 
-  // Get framework for each app title
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case "l":
+            e.preventDefault();
+            setIsPromptOpen((prev) => !prev);
+            break;
+          case "p":
+          case "x":
+            e.preventDefault();
+            setIsMetricsOpen((prev) => !prev);
+            break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const getFramework = useCallback((title: string) => {
     switch (title) {
-      case "Standard Version": return "tailwind";
-      case "Visual Focus": return "bootstrap";
+      case "Standard Version": return "bootstrap";
+      case "Visual Focus": return "materialize";
       case "Minimalist Version": return "pure";
-      case "Creative Approach": return "materialize";
-      case "Enhanced Version": return "tailwind";
+      case "Creative Approach": return "tailwind";
       case "Accessible Version": return "foundation";
-      case "Mobile Optimized": return "bootstrap";
-      case "Interactive Version": return "materialize";
-      case "Data Visualization": return "tailwind";
-      case "Progressive Web App": return "tailwind";
-      default: return "tailwind";
+      default: return "Bulma";
     }
   }, []);
 
@@ -183,40 +199,119 @@ function ResultsContent() {
         return newStates;
       });
     }
-  }, [getFramework, variations]);
+  }, [getFramework]); // Remove appTitles and variations from dependencies since they're now constants
 
-  // Handler functions
   const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false) => {
-    // For now, just redirect to new generation
-    window.location.href = `/results?prompt=${encodeURIComponent(prompt)}`;
+    if (isUpdate) {
+      if (chaosMode) {
+        // Update all apps in chaos mode
+        setLoadingStates(new Array(NUM_APPS).fill(true));
+        
+        try {
+          // Create an array of promises for all apps
+          const updatePromises = appTitles.map(async (title, index) => {
+            const framework = getFramework(title);
+
+            const response = await fetch("/api/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                prompt,
+                existingCode: editedResults[index],
+                framework,
+                isUpdate: true,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`Failed to update app ${index + 1}`);
+            }
+
+            const data = await response.json();
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            return { index, code: data.code };
+          });
+
+          // Wait for all updates to complete
+          const results = await Promise.all(updatePromises);
+          
+          // Update all results at once
+          setEditedResults((prev) => {
+            const newResults = [...prev];
+            results.forEach(result => {
+              newResults[result.index] = result.code;
+            });
+            return newResults;
+          });
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Failed to update applications in chaos mode"
+          );
+        } finally {
+          setLoadingStates(new Array(NUM_APPS).fill(false));
+        }
+      } else {
+        // Update only the selected app (original behavior)
+        setLoadingStates((prev) => {
+          const newStates = [...prev];
+          newStates[selectedAppIndex] = true;
+          return newStates;
+        });
+
+        try {
+          const framework = getFramework(appTitles[selectedAppIndex]);
+
+          const response = await fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt,
+              existingCode: editedResults[selectedAppIndex],
+              framework,
+              isUpdate: true,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to update app ${selectedAppIndex + 1}`);
+          }
+
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          setEditedResults((prev) => {
+            const newResults = [...prev];
+            newResults[selectedAppIndex] = data.code;
+            return newResults;
+          });
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Failed to update application"
+          );
+        } finally {
+          setLoadingStates((prev) => {
+            const newStates = [...prev];
+            newStates[selectedAppIndex] = false;
+            return newStates;
+          });
+        }
+      }
+    } else {
+      setLoadingStates(new Array(NUM_APPS).fill(true));
+      setResults(new Array(NUM_APPS).fill(""));
+      setEditedResults(new Array(NUM_APPS).fill(""));
+      setGenerationTimes({});
+      Promise.all(variations.map((_, index) => generateApp(index, prompt)));
+    }
   };
 
   const handleVoiceInput = (text: string) => {
-    handleNewPrompt(text, true, false);
-  };
-
-  const handleCodeChange = (newCode: string) => {
-    const newResults = [...editedResults];
-    newResults[selectedAppIndex] = newCode;
-    setEditedResults(newResults);
-  };
-
-  const handleTileClick = (index: number) => {
-    setSelectedAppIndex(index);
-    setTimeout(() => {
-      document.getElementById('detailed-view')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
-  };
-
-  const handleMaximize = () => {
-    setIsFullscreenOpen(true);
-  };
-
-  const handleCloseFullscreen = () => {
-    setIsFullscreenOpen(false);
+    handleNewPrompt(text, true, false); // Default to single mode for voice input
   };
 
   useEffect(() => {
@@ -239,7 +334,34 @@ function ResultsContent() {
     };
 
     generateWithThrottle();
-  }, [searchParams, generateApp]);
+  }, [searchParams, generateApp]); // Remove variations from dependencies since it's now a constant
+
+  const handleCodeChange = (newCode: string) => {
+    const newResults = [...editedResults];
+    newResults[selectedAppIndex] = newCode;
+    setEditedResults(newResults);
+  };
+
+  // Function to handle clicking on a tile
+  const handleTileClick = (index: number) => {
+    setSelectedAppIndex(index);
+    // Scroll to the detailed view (now at the top)
+    setTimeout(() => {
+      document.getElementById('detailed-view')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
+  };
+
+  // Function to handle fullscreen toggle
+  const handleMaximize = () => {
+    setIsFullscreenOpen(true);
+  };
+
+  const handleCloseFullscreen = () => {
+    setIsFullscreenOpen(false);
+  };
 
   return (
     <AuroraBackground>
@@ -287,6 +409,8 @@ function ResultsContent() {
                 ← Back to Prompt
               </Link>
             </div>
+
+            {/* <ThemeToggle /> */}
           </div>
 
           {error && (
@@ -484,10 +608,10 @@ function ResultsContent() {
 export default function Results() {
   return (
     <Suspense fallback={
-      <div className="w-full h-screen flex items-center justify-center bg-gray-900">
+      <div className="w-full h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4 text-white">Loading...</h2>
-          <div className="w-16 h-16 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
+          <h2 className="text-xl font-semibold mb-4">Loading...</h2>
+          <div className="w-16 h-16 border-4 border-gray-300 border-t-indigo-500 rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     }>

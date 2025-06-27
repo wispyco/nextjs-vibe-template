@@ -14,6 +14,8 @@ import {
   FaStore,
   FaRobot,
   FaQuestionCircle,
+  FaMinus,
+  FaPlus,
 } from "react-icons/fa";
 
 // Signup Modal Component
@@ -81,9 +83,15 @@ export function SignupModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
   );
 }
 
+// Constants for number of generations
+const MIN_NUM_GENERATIONS = 1;
+const MAX_NUM_GENERATIONS = 6;
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [numGenerations, setNumGenerations] = useState(3);
+  const [showSignupModal, setShowSignupModal] = useState(false);
   const router = useRouter();
   const examples = [
     {
@@ -125,7 +133,25 @@ export default function Home() {
   ];
   const [isLoading, setIsLoading] = useState(false);
 
-  const [showSignupModal, setShowSignupModal] = useState(false);
+  // Functions for incrementing/decrementing generations
+  const incrementGenerations = () => {
+    if (numGenerations < MAX_NUM_GENERATIONS) {
+      setNumGenerations(numGenerations + 1);
+    }
+  };
+
+  const decrementGenerations = () => {
+    if (numGenerations > MIN_NUM_GENERATIONS) {
+      setNumGenerations(numGenerations - 1);
+    }
+  };
+
+  // Gradient style for the number display
+  const gradientStyle = {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  };
 
   const handleSubmit = async () => {
     if (!prompt) {
@@ -266,9 +292,9 @@ export default function Home() {
                   ))}
                 </div>
 
-                {errorMessage && (
+                {error && (
                   <div className="mb-4 p-3 bg-red-500/10 text-red-500 rounded-lg">
-                    {errorMessage}
+                    {error}
                   </div>
                 )}
 

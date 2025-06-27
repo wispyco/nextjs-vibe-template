@@ -19,8 +19,8 @@ const frameworkPrompts = {
 };
 
 export async function POST(req: NextRequest) {
-
   try {
+    const body = await req.json();
     const { prompt, variation, framework } = body;
 
     const portkeyApiKey = process.env.PORTKEY_API_KEY;
