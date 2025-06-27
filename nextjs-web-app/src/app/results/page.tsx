@@ -55,7 +55,7 @@ const ShortLoadingBar = styled(LoadingBar)`
 `;
 
 // Move constants outside component to prevent recreation on every render
-const NUM_APPS = 9; // Single variable to control number of apps
+const MAX_APPS = 6; // Maximum number of apps that can be generated
 
 const variations = [
   "",
@@ -64,10 +64,6 @@ const variations = [
   "Add some creative features that might not be explicitly mentioned in the prompt.",
   "Create an enhanced version with additional features and modern design patterns.",
   "Build a version with accessibility and internationalization features in mind.",
-  "Create a version optimized for mobile devices with responsive design.",
-  "Build a version with advanced animations and interactive elements.",
-  "Create a version with data visualization capabilities.",
-  "Build a version with offline functionality and progressive web app features.",
 ];
 
 const appTitles = [
@@ -77,23 +73,26 @@ const appTitles = [
   "Creative Approach",
   "Enhanced Version",
   "Accessible Version",
-  "Mobile Optimized",
-  "Interactive Version",
-  "Data Visualization",
-  "Progressive Web App",
 ];
 
 // Wrapper component that uses searchParams
 function ResultsContent() {
   const searchParams = useSearchParams();
-  const [loadingStates, setLoadingStates] = useState<boolean[]>(
-    new Array(NUM_APPS).fill(true)
+
+  // Get the number of generations from URL params, default to 3, max 6
+  const numGenerations = Math.min(
+    Math.max(parseInt(searchParams.get("numGenerations") || "3"), 1),
+    MAX_APPS
   );
-  const [results, setResults] = useState<string[]>(new Array(NUM_APPS).fill(""));
+
+  const [loadingStates, setLoadingStates] = useState<boolean[]>(
+    new Array(numGenerations).fill(true)
+  );
+  const [results, setResults] = useState<string[]>(new Array(numGenerations).fill(""));
   const [error, setError] = useState<string | null>(null);
   const [selectedAppIndex, setSelectedAppIndex] = useState(0);
   const [editedResults, setEditedResults] = useState<string[]>(
-    new Array(NUM_APPS).fill("")
+    new Array(numGenerations).fill("")
   );
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [isMetricsOpen, setIsMetricsOpen] = useState(false);
@@ -223,23 +222,23 @@ function ResultsContent() {
     const prompt = searchParams.get("prompt");
     if (!prompt) {
       setError("No prompt provided");
-      setLoadingStates(new Array(NUM_APPS).fill(false));
+      setLoadingStates(new Array(numGenerations).fill(false));
       return;
     }
 
     // Generate apps with throttling to prevent overwhelming the system
     const generateWithThrottle = async () => {
-      for (let i = 0; i < variations.length; i++) {
+      for (let i = 0; i < numGenerations; i++) {
         generateApp(i, prompt);
         // Add small delay between requests to reduce system load
-        if (i < variations.length - 1) {
+        if (i < numGenerations - 1) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     };
 
     generateWithThrottle();
-  }, [searchParams, generateApp]);
+  }, [searchParams, generateApp, numGenerations]);
 
   return (
     <AuroraBackground>
@@ -378,7 +377,7 @@ function ResultsContent() {
 
               {/* Grid of all app previews - moved below detailed view */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {appTitles.map((title, index) => (
+                {appTitles.slice(0, numGenerations).map((title, index) => (
                   <motion.div
                     key={title}
                     className={`rounded-lg overflow-hidden border ${

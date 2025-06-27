@@ -189,11 +189,11 @@ export default function Home() {
       }
       
       // If no rate limit issues, proceed to results page
-      router.push(`/results?prompt=${encodeURIComponent(prompt)}`);
+      router.push(`/results?prompt=${encodeURIComponent(prompt)}&numGenerations=${numGenerations}`);
     } catch (error) {
       console.error("Error checking rate limit:", error);
       // Still try to navigate even if there was an error checking rate limit
-      router.push(`/results?prompt=${encodeURIComponent(prompt)}`);
+      router.push(`/results?prompt=${encodeURIComponent(prompt)}&numGenerations=${numGenerations}`);
     } finally {
       setIsLoading(false);
     }
