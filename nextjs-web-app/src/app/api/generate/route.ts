@@ -19,38 +19,8 @@ const frameworkPrompts = {
 };
 
 export async function POST(req: NextRequest) {
-  // Get client IP address
-  const ip = req.ip || req.headers.get("x-forwarded-for") || "127.0.0.1";
-
-  // Check rate limit (5 requests per IP)
-  const count = submissionCounts.get(ip) || 0;
-  // For debugging only
-  console.log(`Rate limit check: IP ${ip} has used ${count} requests`);
-
-  // if (count >= 25) {
-  //   console.log("Rate limit exceeded for IP:", ip);
-  //   return new Response(
-  //     JSON.stringify({
-  //       error: "rate_limit_exceeded",
-  //       message: "Free limit exceeded. Please create an account to continue.",
-  //     }),
-  //     {
-  //       status: 429,
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //     }
-  //   );
-  // }
-
-  // Parse the request body
-  const body = await req.json();
-
-  // Only increment count for real generations, not rate limit checks
-  if (body && body.variation !== "rate-limit-check") {
-    submissionCounts.set(ip, count + 1);
-  }
   try {
+    const body = await req.json();
     const { prompt, variation, framework } = body;
 
     const portkeyApiKey = process.env.PORTKEY_API_KEY;
@@ -135,12 +105,31 @@ Additional Notes:
 
 Format the code with proper indentation and spacing for readability.`;
     } else {
-      fullPrompt = `Create a well-structured, modern web application:
+      fullPrompt = `Create a well-structured, modern web application based on the specific requirements below:
 
-Instructions:
-1. Base functionality: ${prompt}
-2. Variation: ${variation}
-3. Framework: ${frameworkInstructions}
+CORE FUNCTIONALITY REQUEST:
+${prompt}
+
+IMPORTANT: Interpret the request literally and specifically. Do not default to generic patterns like to-do lists unless explicitly requested. Be creative and think about what the user actually wants.
+
+VARIATION INSTRUCTIONS:
+${variation}
+
+FRAMEWORK REQUIREMENTS:
+${frameworkInstructions}
+
+CREATIVE INTERPRETATION GUIDELINES:
+- If the request mentions "organize" or "productivity", consider alternatives to to-do lists such as:
+  * Calendar/scheduling apps
+  * Dashboard with widgets
+  * Time tracking applications
+  * Habit tracking systems
+  * Note-taking or journaling apps
+  * Project management boards
+  * Goal setting interfaces
+- Focus on the specific domain or context mentioned in the request
+- Add unique features that make the application interesting and functional
+- Think about what would genuinely solve the user's stated problem
 
 Technical Requirements:
 - Create a single HTML file with clean, indented code structure

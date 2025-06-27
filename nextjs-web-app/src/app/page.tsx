@@ -14,6 +14,8 @@ import {
   FaStore,
   FaRobot,
   FaQuestionCircle,
+  FaMinus,
+  FaPlus,
 } from "react-icons/fa";
 
 // Signup Modal Component
@@ -81,9 +83,15 @@ export function SignupModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
   );
 }
 
+// Constants for number of generations
+const MIN_NUM_GENERATIONS = 1;
+const MAX_NUM_GENERATIONS = 6;
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [numGenerations, setNumGenerations] = useState(3);
+  const [showSignupModal, setShowSignupModal] = useState(false);
   const router = useRouter();
   const examples = [
     {
@@ -125,7 +133,25 @@ export default function Home() {
   ];
   const [isLoading, setIsLoading] = useState(false);
 
-  const [showSignupModal, setShowSignupModal] = useState(false);
+  // Functions for incrementing/decrementing generations
+  const incrementGenerations = () => {
+    if (numGenerations < MAX_NUM_GENERATIONS) {
+      setNumGenerations(numGenerations + 1);
+    }
+  };
+
+  const decrementGenerations = () => {
+    if (numGenerations > MIN_NUM_GENERATIONS) {
+      setNumGenerations(numGenerations - 1);
+    }
+  };
+
+  // Gradient style for the number display
+  const gradientStyle = {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  };
 
   const handleSubmit = async () => {
     if (!prompt) {
@@ -137,37 +163,10 @@ export default function Home() {
     setIsLoading(true);
     
     try {
-      // Make a test request to check rate limit before redirecting
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: prompt.substring(0, 50), // Just send a small part of the prompt for the check
-          variation: "rate-limit-check",
-          framework: "none",
-        }),
-      });
-      
-      if (response.status === 429) {
-        // Rate limit exceeded
-        setShowSignupModal(true);
-        setIsLoading(false);
-        return;
-      }
-      
-      const data = await response.json();
-      if (data.error === "rate_limit_exceeded") {
-        setShowSignupModal(true);
-        setIsLoading(false);
-        return;
-      }
-      
-      // If no rate limit issues, proceed to results page
-      router.push(`/results?prompt=${encodeURIComponent(prompt)}`);
+      // Navigate directly to results page
+      router.push(`/results?prompt=${encodeURIComponent(prompt)}&numGenerations=${numGenerations}`);
     } catch (error) {
-      console.error("Error checking rate limit:", error);
-      // Still try to navigate even if there was an error checking rate limit
-      router.push(`/results?prompt=${encodeURIComponent(prompt)}`);
+      console.error("Error navigating to results:", error);
     } finally {
       setIsLoading(false);
     }
@@ -182,20 +181,75 @@ export default function Home() {
         />
       )}
       <div className="relative z-10">
-        <HeroGeometric badge="" title1="Chaos Coder" title2="9x Dev">
-          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
+        <HeroGeometric
+          badge=""
+          title1="Chaos Coder"
+          title2={`${numGenerations}x Dev`}
+          numWebsites={numGenerations}
+        >
+          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mb-10">
             <div className="relative bg-[#1a1f2e]/80 backdrop-blur-xl rounded-2xl overflow-hidden border border-[#2a3040] shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]">
               <div className="relative p-4 sm:p-6 z-10">
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="E.g., A to-do list app with local storage and dark mode"
-                  className="w-full h-24 sm:h-32 p-3 sm:p-4 bg-[#1a1f2e]/50 font-sans text-sm sm:text-base
-                         border border-[#2a3040] rounded-xl mb-4
-                         focus:ring-2 focus:ring-[#3b82f6]/50 focus:border-transparent resize-none
-                         placeholder:text-gray-400/70
-                         text-gray-200"
-                />
+                {/* Prompt and Number of Websites Container */}
+                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                  {/* Prompt Text Area */}
+                  <div className="w-full md:flex-grow">
+                    <textarea
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      placeholder="E.g., A to-do list app with local storage and dark mode"
+                      className="w-full h-24 sm:h-32 p-3 sm:p-4 bg-[#1a1f2e]/50 font-sans text-sm sm:text-base
+                             border border-[#2a3040] rounded-xl
+                             focus:ring-2 focus:ring-[#3b82f6]/50 focus:border-transparent resize-none
+                             placeholder:text-gray-400/70
+                             text-gray-200"
+                    />
+                  </div>
+
+                  {/* Number of Websites Control */}
+                  <div className="w-full md:w-48 p-3 bg-[#1a1f2e]/30 border border-[#2a3040] rounded-lg self-start h-24 sm:h-32 flex flex-col justify-around">
+                    <div className="text-xs sm:text-sm bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 font-medium mb-2">
+                      Number of Websites:
+                    </div>
+                    <div className="flex items-center justify-center">
+                      <motion.button
+                        onClick={decrementGenerations}
+                        disabled={numGenerations <= MIN_NUM_GENERATIONS}
+                        className={`p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] ${numGenerations <= MIN_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed text-gray-600' : 'text-gray-400 hover:text-gray-200'} shadow-md`}
+                        whileHover={numGenerations > MIN_NUM_GENERATIONS ? { scale: 1.05 } : undefined}
+                        whileTap={numGenerations > MIN_NUM_GENERATIONS ? { scale: 0.95 } : undefined}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      >
+                        <FaMinus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      </motion.button>
+                      <div className="mx-3 sm:mx-4 flex flex-col items-center">
+                        <motion.div
+                          className="text-2xl sm:text-4xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-purple-300 to-rose-300 font-bold"
+                          key={numGenerations}
+                          initial={{ scale: 1.2, opacity: 0.7 }}
+                          animate={{
+                            scale: 1,
+                            opacity: 1,
+                          }}
+                          transition={{ duration: 0.3 }}
+                          style={gradientStyle}
+                        >
+                          {numGenerations}
+                        </motion.div>
+                      </div>
+                      <motion.button
+                        onClick={incrementGenerations}
+                        disabled={numGenerations >= MAX_NUM_GENERATIONS}
+                        className={`p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-[#1a1f2e]/90 to-[#141822]/90 border border-[#2a3040] ${numGenerations >= MAX_NUM_GENERATIONS ? 'opacity-50 cursor-not-allowed text-gray-600' : 'text-gray-400 hover:text-gray-200'} shadow-md`}
+                        whileHover={numGenerations < MAX_NUM_GENERATIONS ? { scale: 1.05 } : undefined}
+                        whileTap={numGenerations < MAX_NUM_GENERATIONS ? { scale: 0.95 } : undefined}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      >
+                        <FaPlus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      </motion.button>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4">
                   {examples.map((example, i) => (
@@ -212,6 +266,13 @@ export default function Home() {
                   ))}
                 </div>
 
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/10 text-red-500 rounded-lg">
+                    {error}
+                  </div>
+                )}
+
+                {/* Generate Button - Moved above style settings */}
                 <RainbowButton
                   onClick={handleSubmit}
                   disabled={isLoading}

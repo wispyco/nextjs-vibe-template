@@ -11,7 +11,7 @@ import { BrowserContainer } from "@/components/ui/browser-container";
 import { useTheme } from "@/context/ThemeContext";
 import ThemeToggle from "@/components/ThemeToggle";
 import PromptInput from "@/components/DevTools/PromptInput";
-import PerformanceMetrics from "@/components/DevTools/PerformanceMetrics";
+
 import VoiceInput from "@/components/DevTools/VoiceInput";
 import FullscreenPreview from "@/components/FullscreenPreview";
 import MockDeployButton from "@/components/MockDeployButton";
@@ -55,7 +55,7 @@ const ShortLoadingBar = styled(LoadingBar)`
 `;
 
 // Move constants outside component to prevent recreation on every render
-const NUM_APPS = 9; // Single variable to control number of apps
+const MAX_APPS = 6; // Maximum number of apps that can be generated
 
 const variations = [
   "",
@@ -64,10 +64,6 @@ const variations = [
   "Add some creative features that might not be explicitly mentioned in the prompt.",
   "Create an enhanced version with additional features and modern design patterns.",
   "Build a version with accessibility and internationalization features in mind.",
-  "Create a version optimized for mobile devices with responsive design.",
-  "Build a version with advanced animations and interactive elements.",
-  "Create a version with data visualization capabilities.",
-  "Build a version with offline functionality and progressive web app features.",
 ];
 
 const appTitles = [
@@ -77,69 +73,52 @@ const appTitles = [
   "Creative Approach",
   "Enhanced Version",
   "Accessible Version",
-  "Mobile Optimized",
-  "Interactive Version",
-  "Data Visualization",
-  "Progressive Web App",
 ];
 
 // Wrapper component that uses searchParams
 function ResultsContent() {
   const searchParams = useSearchParams();
-  const [loadingStates, setLoadingStates] = useState<boolean[]>(
-    new Array(NUM_APPS).fill(true)
+
+  // Get the number of generations from URL params, default to 3, max 6
+  const numGenerations = Math.min(
+    Math.max(parseInt(searchParams.get("numGenerations") || "3"), 1),
+    MAX_APPS
   );
-  const [results, setResults] = useState<string[]>(new Array(NUM_APPS).fill(""));
+
+  const [loadingStates, setLoadingStates] = useState<boolean[]>(
+    new Array(numGenerations).fill(true)
+  );
+  const [results, setResults] = useState<string[]>(new Array(numGenerations).fill(""));
   const [error, setError] = useState<string | null>(null);
   const [selectedAppIndex, setSelectedAppIndex] = useState(0);
   const [editedResults, setEditedResults] = useState<string[]>(
-    new Array(NUM_APPS).fill("")
+    new Array(numGenerations).fill("")
   );
   const [isPromptOpen, setIsPromptOpen] = useState(false);
-  const [isMetricsOpen, setIsMetricsOpen] = useState(false);
-  const [generationTimes, setGenerationTimes] = useState<{
-    [key: number]: number;
-  }>({});
+
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [showSignupModal, setShowSignupModal] = useState(false);
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   const { theme } = useTheme();
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.shiftKey) {
-        switch (e.key.toLowerCase()) {
-          case "l":
-            e.preventDefault();
-            setIsPromptOpen((prev) => !prev);
-            break;
-          case "p":
-          case "x":
-            e.preventDefault();
-            setIsMetricsOpen((prev) => !prev);
-            break;
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
+  // Get framework for each app title
   const getFramework = useCallback((title: string) => {
     switch (title) {
-      case "Standard Version": return "bootstrap";
-      case "Visual Focus": return "materialize";
+      case "Standard Version": return "tailwind";
+      case "Visual Focus": return "bootstrap";
       case "Minimalist Version": return "pure";
-      case "Creative Approach": return "tailwind";
+      case "Creative Approach": return "materialize";
+      case "Enhanced Version": return "tailwind";
       case "Accessible Version": return "foundation";
-      default: return "Bulma";
+      case "Mobile Optimized": return "bootstrap";
+      case "Interactive Version": return "materialize";
+      case "Data Visualization": return "tailwind";
+      case "Progressive Web App": return "tailwind";
+      default: return "tailwind";
     }
   }, []);
 
   const generateApp = useCallback(async (index: number, promptText: string) => {
-    const startTime = performance.now();
     try {
       const framework = getFramework(appTitles[index]);
 
@@ -153,21 +132,12 @@ function ResultsContent() {
         }),
       });
 
-      if (response.status === 429) {
-        // Show signup modal for rate limit
-        setShowSignupModal(true);
-        throw new Error("Rate limit exceeded. Please create an account to continue.");
-      }
-
       if (!response.ok) {
         throw new Error(`Failed to generate app ${index + 1}`);
       }
 
       const data = await response.json();
-      if (data.error === "rate_limit_exceeded") {
-        setShowSignupModal(true);
-        throw new Error("Rate limit exceeded. Please create an account to continue.");
-      } else if (data.error) {
+      if (data.error) {
         throw new Error(data.error);
       }
 
@@ -183,11 +153,7 @@ function ResultsContent() {
         return newResults;
       });
 
-      const endTime = performance.now();
-      setGenerationTimes((prev) => ({
-        ...prev,
-        [index]: (endTime - startTime) / 1000, // Convert to seconds
-      }));
+
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to generate applications"
@@ -199,142 +165,17 @@ function ResultsContent() {
         return newStates;
       });
     }
-  }, [getFramework]); // Remove appTitles and variations from dependencies since they're now constants
+  }, [getFramework, variations]);
 
+  // Handler functions
   const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false) => {
-    if (isUpdate) {
-      if (chaosMode) {
-        // Update all apps in chaos mode
-        setLoadingStates(new Array(NUM_APPS).fill(true));
-        
-        try {
-          // Create an array of promises for all apps
-          const updatePromises = appTitles.map(async (title, index) => {
-            const framework = getFramework(title);
-
-            const response = await fetch("/api/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                prompt,
-                existingCode: editedResults[index],
-                framework,
-                isUpdate: true,
-              }),
-            });
-
-            if (!response.ok) {
-              throw new Error(`Failed to update app ${index + 1}`);
-            }
-
-            const data = await response.json();
-            if (data.error) {
-              throw new Error(data.error);
-            }
-
-            return { index, code: data.code };
-          });
-
-          // Wait for all updates to complete
-          const results = await Promise.all(updatePromises);
-          
-          // Update all results at once
-          setEditedResults((prev) => {
-            const newResults = [...prev];
-            results.forEach(result => {
-              newResults[result.index] = result.code;
-            });
-            return newResults;
-          });
-        } catch (err) {
-          setError(
-            err instanceof Error ? err.message : "Failed to update applications in chaos mode"
-          );
-        } finally {
-          setLoadingStates(new Array(NUM_APPS).fill(false));
-        }
-      } else {
-        // Update only the selected app (original behavior)
-        setLoadingStates((prev) => {
-          const newStates = [...prev];
-          newStates[selectedAppIndex] = true;
-          return newStates;
-        });
-
-        try {
-          const framework = getFramework(appTitles[selectedAppIndex]);
-
-          const response = await fetch("/api/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              prompt,
-              existingCode: editedResults[selectedAppIndex],
-              framework,
-              isUpdate: true,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to update app ${selectedAppIndex + 1}`);
-          }
-
-          const data = await response.json();
-          if (data.error) {
-            throw new Error(data.error);
-          }
-
-          setEditedResults((prev) => {
-            const newResults = [...prev];
-            newResults[selectedAppIndex] = data.code;
-            return newResults;
-          });
-        } catch (err) {
-          setError(
-            err instanceof Error ? err.message : "Failed to update application"
-          );
-        } finally {
-          setLoadingStates((prev) => {
-            const newStates = [...prev];
-            newStates[selectedAppIndex] = false;
-            return newStates;
-          });
-        }
-      }
-    } else {
-      setLoadingStates(new Array(NUM_APPS).fill(true));
-      setResults(new Array(NUM_APPS).fill(""));
-      setEditedResults(new Array(NUM_APPS).fill(""));
-      setGenerationTimes({});
-      Promise.all(variations.map((_, index) => generateApp(index, prompt)));
-    }
+    // For now, just redirect to new generation
+    window.location.href = `/results?prompt=${encodeURIComponent(prompt)}`;
   };
 
   const handleVoiceInput = (text: string) => {
-    handleNewPrompt(text, true, false); // Default to single mode for voice input
+    handleNewPrompt(text, true, false);
   };
-
-  useEffect(() => {
-    const prompt = searchParams.get("prompt");
-    if (!prompt) {
-      setError("No prompt provided");
-      setLoadingStates(new Array(NUM_APPS).fill(false));
-      return;
-    }
-
-    // Generate apps with throttling to prevent overwhelming the system
-    const generateWithThrottle = async () => {
-      for (let i = 0; i < variations.length; i++) {
-        generateApp(i, prompt);
-        // Add small delay between requests to reduce system load
-        if (i < variations.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-    };
-
-    generateWithThrottle();
-  }, [searchParams, generateApp]); // Remove variations from dependencies since it's now a constant
 
   const handleCodeChange = (newCode: string) => {
     const newResults = [...editedResults];
@@ -342,10 +183,8 @@ function ResultsContent() {
     setEditedResults(newResults);
   };
 
-  // Function to handle clicking on a tile
   const handleTileClick = (index: number) => {
     setSelectedAppIndex(index);
-    // Scroll to the detailed view (now at the top)
     setTimeout(() => {
       document.getElementById('detailed-view')?.scrollIntoView({
         behavior: 'smooth',
@@ -354,7 +193,6 @@ function ResultsContent() {
     }, 100);
   };
 
-  // Function to handle fullscreen toggle
   const handleMaximize = () => {
     setIsFullscreenOpen(true);
   };
@@ -362,6 +200,20 @@ function ResultsContent() {
   const handleCloseFullscreen = () => {
     setIsFullscreenOpen(false);
   };
+
+  useEffect(() => {
+    const prompt = searchParams.get("prompt");
+    if (!prompt) {
+      setError("No prompt provided");
+      setLoadingStates(new Array(numGenerations).fill(false));
+      return;
+    }
+
+    // Generate all apps
+    for (let i = 0; i < numGenerations; i++) {
+      generateApp(i, prompt);
+    }
+  }, [searchParams, generateApp, numGenerations]);
 
   return (
     <AuroraBackground>
@@ -409,8 +261,6 @@ function ResultsContent() {
                 ← Back to Prompt
               </Link>
             </div>
-
-            {/* <ThemeToggle /> */}
           </div>
 
           {error && (
@@ -502,7 +352,7 @@ function ResultsContent() {
 
               {/* Grid of all app previews - moved below detailed view */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {appTitles.map((title, index) => (
+                {appTitles.slice(0, numGenerations).map((title, index) => (
                   <motion.div
                     key={title}
                     className={`rounded-lg overflow-hidden border ${
@@ -585,11 +435,7 @@ function ResultsContent() {
         isUpdateMode={true}
         currentCode={editedResults[selectedAppIndex]}
       />
-      <PerformanceMetrics
-        isOpen={isMetricsOpen}
-        onClose={() => setIsMetricsOpen(false)}
-        generationTimes={generationTimes}
-      />
+
       {isVoiceEnabled && (
         <VoiceInput onInput={(text) => handleVoiceInput(text)} theme={theme} />
       )}
@@ -608,10 +454,10 @@ function ResultsContent() {
 export default function Results() {
   return (
     <Suspense fallback={
-      <div className="w-full h-screen flex items-center justify-center">
+      <div className="w-full h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Loading...</h2>
-          <div className="w-16 h-16 border-4 border-gray-300 border-t-indigo-500 rounded-full animate-spin mx-auto"></div>
+          <h2 className="text-xl font-semibold mb-4 text-white">Loading...</h2>
+          <div className="w-16 h-16 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     }>

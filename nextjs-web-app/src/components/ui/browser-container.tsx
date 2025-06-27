@@ -58,6 +58,11 @@ const Circle = styled.div<{ color: string; $clickable?: boolean }>`
     height: 12px;
   }
 
+  @media (min-width: 640px) {
+    width: 12px;
+    height: 12px;
+  }
+
   &:hover {
     opacity: 1;
     transform: scale(${(props) => props.$clickable ? '1.2' : '1.1'});
