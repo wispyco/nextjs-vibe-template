@@ -44,14 +44,14 @@ const CircleContainer = styled.div`
   min-width: 60px;
 `;
 
-const Circle = styled.div<{ color: string; clickable?: boolean }>`
+const Circle = styled.div<{ color: string; $clickable?: boolean }>`
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background-color: ${(props) => props.color};
   opacity: 0.9;
   transition: all 0.15s ease;
-  cursor: ${(props) => props.clickable ? 'pointer' : 'default'};
+  cursor: ${(props) => props.$clickable ? 'pointer' : 'default'};
 
   @media (min-width: 640px) {
     width: 12px;
@@ -60,7 +60,7 @@ const Circle = styled.div<{ color: string; clickable?: boolean }>`
 
   &:hover {
     opacity: 1;
-    transform: scale(${(props) => props.clickable ? '1.2' : '1.1'});
+    transform: scale(${(props) => props.$clickable ? '1.2' : '1.1'});
   }
 `;
 
@@ -114,7 +114,7 @@ export const BrowserContainer = ({
           <Circle color="#FFBD2E" />
           <Circle
             color="#28C840"
-            clickable={!!onMaximize}
+            $clickable={!!onMaximize}
             onClick={onMaximize}
           />
         </CircleContainer>
