@@ -3,7 +3,7 @@
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { Circle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { cn } from "../ui/utils";
+import { cn } from "./utils";
 
 function ElegantShape({
   className,
