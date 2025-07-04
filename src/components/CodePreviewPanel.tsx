@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, memo, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { FaExpand } from 'react-icons/fa';
+import { useDebounce } from '@/hooks/useDebounce';
 
 
 const Editor = lazy(() => import('@monaco-editor/react'));
@@ -20,7 +21,6 @@ interface CodePreviewPanelProps {
 
 const CodePreviewPanel = memo(function CodePreviewPanel({
   code,
-  title,
   onChange,
   isLoading = false,
   theme,
@@ -36,13 +36,18 @@ const CodePreviewPanel = memo(function CodePreviewPanel({
     setEditedCode(code);
   }, [code]);
 
+  // Debounce the onChange callback to prevent too many updates
+  const debouncedOnChange = useDebounce((value: string) => {
+    onChange?.(value);
+  }, 500);
+
   const handleCodeChange = useCallback((value: string | undefined) => {
     if (value !== undefined) {
       setEditedCode(value);
       setPreviewKey(prev => prev + 1);
-      onChange?.(value);
+      debouncedOnChange(value);
     }
-  }, [onChange]);
+  }, [debouncedOnChange]);
 
   const handleTabChange = useCallback((tab: 'preview' | 'code') => {
     setActiveTab(tab);

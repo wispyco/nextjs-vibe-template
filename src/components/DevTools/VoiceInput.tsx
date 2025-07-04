@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaMicrophone } from "react-icons/fa";
 import styled from "styled-components";
+
+// Type declarations for Web Speech API
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SpeechRecognition = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SpeechRecognitionEvent = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SpeechRecognitionErrorEvent = any;
 
 const VoiceButton = styled(motion.button)`
   position: fixed;
@@ -43,7 +51,6 @@ interface VoiceInputProps {
 export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   const [isVoiceSupported, setIsVoiceSupported] = useState(true);
 
@@ -52,71 +59,77 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
     return '...' + text.slice(-maxLength);
   };
 
+  const stopListening = useCallback(() => {
+    if (recognition) {
+      recognition.stop();
+      setIsListening(false);
+    }
+  }, [recognition]);
+
+  // Initialize speech recognition only once
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as unknown as any).SpeechRecognition || (window as unknown as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
+        const recognitionInstance = new SpeechRecognition();
+        recognitionInstance.continuous = true;
+        recognitionInstance.interimResults = true;
+        recognitionInstance.lang = "en-US";
 
-        recognition.onresult = (event) => {
-          const currentTranscript = Array.from(event.results)
-            .map((result) => result[0].transcript)
-            .join("");
-
-          setTranscript(currentTranscript);
-
-          // Clear existing timeout
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-
-          // Set new timeout
-          const newTimeoutId = setTimeout(() => {
-            if (currentTranscript.trim()) {
-              onInput(currentTranscript);
-              clearTranscript();
-            }
-          }, 5000);
-
-          setTimeoutId(newTimeoutId);
-        };
-
-        recognition.onerror = (event) => {
-          console.error("Speech recognition error:", event.error);
-          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            setIsVoiceSupported(false);
-          }
-          stopListening();
-          setTranscript("");
-        };
-
-        recognition.onend = () => {
-          if (isListening) {
-            // If it was supposed to be listening but ended, try to restart
-            try {
-              recognition.start();
-            } catch (err) {
-              console.error("Failed to restart recognition:", err);
-              setIsVoiceSupported(false);
-              stopListening();
-            }
-          }
-        };
-
-        setRecognition(recognition);
+        setRecognition(recognitionInstance);
       } else {
         setIsVoiceSupported(false);
       }
     }
+  }, []); // Empty dependency array - only run once
+
+  // Handle recognition events in a separate effect
+  useEffect(() => {
+    if (!recognition) return;
+
+    let currentTimeoutId: NodeJS.Timeout | null = null;
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const currentTranscript = Array.from(event.results)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((result: any) => result[0].transcript)
+        .join("");
+
+      setTranscript(currentTranscript);
+
+      // Clear existing timeout
+      if (currentTimeoutId) {
+        clearTimeout(currentTimeoutId);
+      }
+
+      // Set new timeout
+      currentTimeoutId = setTimeout(() => {
+        if (currentTranscript.trim()) {
+          onInput(currentTranscript);
+          setTranscript("");
+        }
+      }, 5000);
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setIsVoiceSupported(false);
+      }
+      setIsListening(false);
+      setTranscript("");
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
 
     return () => {
       // Cleanup timeout
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      if (currentTimeoutId) {
+        clearTimeout(currentTimeoutId);
       }
       // Cleanup speech recognition
       if (recognition) {
@@ -126,7 +139,7 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
         recognition.onend = null;
       }
     };
-  }, [onInput, timeoutId, isListening]);
+  }, [recognition, onInput]);
 
   const toggleListening = () => {
     if (!recognition || !isVoiceSupported) return;
@@ -150,16 +163,7 @@ export default function VoiceInput({ onInput, theme }: VoiceInputProps) {
     }
   };
 
-  const stopListening = () => {
-    if (recognition) {
-      recognition.stop();
-      setIsListening(false);
-    }
-  };
-
-  const clearTranscript = () => {
-    setTranscript("");
-  };
+  // Removed clearTranscript function as it's no longer needed
 
   return (
     <>

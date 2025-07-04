@@ -1,0 +1,313 @@
+# Vibeweb.app Architecture DSL
+# AI-Powered Web Application Generator with Self-Healing Deployment
+
+app:
+  name: vibeweb.app
+  description: AI-powered web application generator that creates multiple Next.js app variations from a single prompt
+  version: 1.0.0
+  
+  core_features:
+    - multi_variant_generation: Generate 1-6 different implementations of the same idea
+    - nextjs_projects: Creates full Next.js projects instead of static HTML
+    - self_healing_deployment: Automatically fixes build errors during deployment
+    - ai_project_editing: Edit deployed projects through natural language
+    - pull_request_workflow: Create PRs instead of direct commits
+    - live_preview: Real-time preview of changes
+
+architecture:
+  frontend:
+    framework: Next.js 15.2.0
+    runtime: Edge Runtime for API routes
+    styling:
+      - Tailwind CSS v4
+      - Styled Components
+      - Framer Motion (animations)
+    state_management: Jotai
+    ui_components:
+      - Custom UI components in /src/components/ui/
+      - Aurora backgrounds
+      - Rainbow buttons
+      - Browser containers
+    
+  backend:
+    ai_providers:
+      primary: Claude (Anthropic)
+      fallback: GPT-4 (OpenAI)
+    
+    deployment:
+      platform: Vercel
+      repository: GitHub
+      authentication: Supabase Auth
+    
+    database:
+      provider: Supabase (PostgreSQL)
+      tables:
+        - profiles: User profiles with GitHub info
+        - projects: Deployed projects metadata
+        - deployments: Deployment history
+        - ai_conversations: AI chat sessions
+        - ai_messages: Individual messages in conversations
+
+workflows:
+  generation_flow:
+    1_home_page:
+      route: /
+      actions:
+        - user_enters_prompt: Text describing desired web app
+        - select_variations: Choose 1-6 different versions
+        - submit_to_results: Navigate to /results with prompt
+    
+    2_results_page:
+      route: /results
+      parallel_generation: true
+      for_each_variation:
+        - call_generate_api: POST /api/generate
+        - receive_html_code: Initial HTML generation
+        - convert_to_nextjs: Transform HTML to Next.js project structure
+        - display_preview: Show in iframe with loading states
+    
+    3_deployment:
+      trigger: User clicks "Deploy" button
+      steps:
+        - validate_syntax: Check for build errors
+        - self_heal_if_needed: Fix errors automatically
+        - create_github_repo: Using GitHub API
+        - push_nextjs_files: Complete project structure
+        - create_vercel_project: Link to GitHub repo
+        - trigger_deployment: Start Vercel build
+        - save_to_database: Store project metadata
+
+  editing_flow:
+    1_project_selection:
+      route: /deployments
+      actions:
+        - list_user_projects: Show all deployed projects
+        - click_edit_project: Navigate to editor
+    
+    2_project_editor:
+      route: /projects/[id]/edit
+      layout:
+        left_panel: AI chat interface
+        right_panel: Live preview iframe
+      
+      conversation_flow:
+        - user_sends_message: Natural language request
+        - ai_analyzes_code: Fetch current files from GitHub
+        - ai_generates_changes: Create file modifications
+        - apply_changes:
+            if_pr_mode:
+              - create_feature_branch: ai-agent-timestamp
+              - push_to_branch: Updated files
+              - create_pull_request: With AI description
+            else:
+              - push_to_main: Direct commit
+        - trigger_deployment: If mobile or auto-deploy
+        - update_preview: Refresh iframe
+
+  self_healing_flow:
+    trigger: Build validation fails
+    max_attempts: 3
+    timeout: 5 minutes
+    steps:
+      - parse_errors: Extract error patterns
+      - try_quick_fixes:
+          - unterminated_strings: Add missing quotes
+          - jsx_syntax: Remove problematic style jsx
+          - missing_imports: Add React import
+      - if_not_fixed:
+          - call_ai: Send errors + code to AI
+          - apply_ai_fixes: Update files with suggestions
+      - revalidate: Check if build passes
+      - continue_or_fail: Proceed with deployment or show errors
+
+api_endpoints:
+  generation:
+    /api/generate:
+      method: POST
+      input:
+        prompt: string
+        variation: string
+        framework: tailwind|bootstrap|materialize|pure
+      output:
+        code: string (HTML)
+        project: NextJS project structure
+        isNextJs: boolean
+  
+  deployment:
+    /api/deploy:
+      method: POST
+      runtime: nodejs (for SSE)
+      input:
+        projectName: string
+        code: string
+        project: NextJS files object
+        appTitle: string
+      output: Server-Sent Events stream
+      stages:
+        - validating: Syntax checking
+        - healing: Auto-fixing errors
+        - creating-repo: GitHub repository
+        - pushing-code: Upload files
+        - creating-project: Vercel setup
+        - deploying: Trigger build
+        - complete: Success with URLs
+  
+  ai_agent:
+    /api/ai-agent:
+      method: POST/GET
+      runtime: edge
+      post_input:
+        projectId: string
+        message: string
+        conversationId?: string
+        clientType: web|mobile
+        createPR?: boolean
+      post_output:
+        message: AI response
+        changes: File modifications
+        preview?: Updated files
+        deployed?: boolean
+      get_params:
+        conversationId: Get specific chat
+        projectId: Get all project chats
+  
+  projects:
+    /api/projects:
+      method: GET
+      output: User's projects list
+    
+    /api/projects/[id]:
+      method: GET
+      output: Single project details
+
+components:
+  ai_system:
+    html_to_nextjs_converter:
+      location: /src/lib/html-to-nextjs.ts
+      converts:
+        - HTML to JSX
+        - Inline styles to globals.css
+        - Scripts to React components
+        - Creates proper file structure
+    
+    self_healer:
+      location: /src/lib/ai-agent/self-healer.ts
+      capabilities:
+        - Parse build errors
+        - Apply pattern-based fixes
+        - Use AI for complex fixes
+        - Timeout protection
+    
+    error_patterns:
+      location: /src/lib/ai-agent/error-patterns.ts
+      handles:
+        - Syntax errors
+        - TypeScript errors
+        - Module not found
+        - JSX issues
+    
+    ai_agent_core:
+      location: /src/lib/ai-agent/index.ts
+      features:
+        - File change detection
+        - Code generation
+        - PR description writing
+        - Multi-provider support
+
+  ui_components:
+    deploy_button:
+      location: /src/components/DeployButton.tsx
+      features:
+        - Project name input
+        - Existing project selection
+        - SSE progress tracking
+        - Error handling
+    
+    ai_chat_interface:
+      location: /src/components/AIChatInterface.tsx
+      features:
+        - Message history
+        - File change tracking
+        - PR mode toggle
+        - Real-time updates
+    
+    project_editor:
+      location: /src/app/projects/[id]/edit/page.tsx
+      layout:
+        - Split screen view
+        - Live preview
+        - GitHub/Vercel links
+        - Fullscreen mode
+
+environment_variables:
+  required:
+    NEXT_PUBLIC_VIBE_BACKEND: AI gateway URL
+    CLAUDE_API_KEY: Anthropic API key
+    OPENAI_API_KEY: OpenAI API key (fallback)
+    GH_PAT: GitHub Personal Access Token
+    VERCEL_TOKEN: Vercel deployment token
+    
+  database:
+    NEXT_PUBLIC_SUPABASE_URL: Supabase project URL
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: Public anonymous key
+
+security:
+  authentication:
+    provider: Supabase Auth
+    methods:
+      - GitHub OAuth
+      - Email/Password
+    
+  authorization:
+    row_level_security: Enabled on all tables
+    policies:
+      - Users can only access their own data
+      - Projects require user_id match
+      - Deployments require project ownership
+  
+  api_protection:
+    - All routes require authentication
+    - User ownership validation
+    - Rate limiting (planned)
+    - Cost controls with timeouts
+
+deployment_infrastructure:
+  github:
+    repository_creation: Automatic with auto_init
+    file_management: 
+      - Complete tree replacement for Next.js
+      - Branch creation for PRs
+      - Commit with descriptive messages
+  
+  vercel:
+    project_creation: Automatic with GitHub link
+    framework_detection: Automatic (Next.js)
+    deployment_triggers: On push to main
+    preview_deployments: For PR branches
+
+data_flow:
+  user_input -> ai_generation -> html_output -> nextjs_conversion -> 
+  validation -> self_healing -> github_push -> vercel_deployment -> 
+  database_storage -> live_preview
+
+mobile_vs_web:
+  web_behavior:
+    - Shows preview in iframe
+    - Allows PR creation
+    - Interactive editing
+  
+  mobile_behavior:
+    - Direct deployment
+    - No preview needed
+    - Auto-deploy changes
+
+monitoring:
+  logging:
+    - Console logs for debugging
+    - Error tracking in API routes
+    - Deployment status tracking
+  
+  user_feedback:
+    - Progress indicators
+    - Error messages
+    - Success notifications

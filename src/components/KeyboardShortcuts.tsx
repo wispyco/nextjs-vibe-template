@@ -7,7 +7,7 @@ import { atom, useAtom } from 'jotai';
 export const isPromptOpenAtom = atom(false);
 
 export default function KeyboardShortcuts() {
-  const [isPromptOpen, setIsPromptOpen] = useAtom(isPromptOpenAtom);
+  const [, setIsPromptOpen] = useAtom(isPromptOpenAtom);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

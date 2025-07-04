@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { FaMicrophone, FaBolt } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
-import { SignupModal } from "@/app/page";
+import { SignupModal } from "@/components/SignupModal";
 
 interface PromptInputProps {
   isOpen: boolean;
@@ -16,7 +16,6 @@ interface PromptInputProps {
 export default function PromptInput({
   onSubmit,
   isUpdateMode = false,
-  currentCode = "",
 }: PromptInputProps) {
   const [prompt, setPrompt] = useState("");
   const [chaosMode, setChaosMode] = useState(true);
@@ -27,11 +26,11 @@ export default function PromptInput({
     e.preventDefault();
     if (prompt.trim()) {
       try {
-        const result = await onSubmit(prompt, isUpdateMode, chaosMode);
+        await onSubmit(prompt, isUpdateMode, chaosMode);
         setPrompt("");
         
 
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error submitting prompt:", error);
       }
     }

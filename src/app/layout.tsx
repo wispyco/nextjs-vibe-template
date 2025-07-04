@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Chaos Coder - Web App Generator",
+  title: "vibeweb.app - Web App Generator",
   description:
-    "Generate six different web applications from a single prompt using Groq's LLama3-70B model",
+    "Generate multiple web applications from a single prompt using AI",
   icons: {
     icon: "/favicon.ico",
   },

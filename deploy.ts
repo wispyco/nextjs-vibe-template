@@ -8,22 +8,33 @@ async function deploy() {
       throw new Error('VERCEL_TOKEN environment variable is required');
     }
 
-    const deployment = await createDeployment({
+    let deploymentUrl: string | undefined;
+    let deploymentState: string = 'pending';
+
+    for await (const event of createDeployment({
       token,
       path: join(process.cwd()),
-      projectSettings: {
-        framework: 'nextjs',
-        buildCommand: 'npm run build',
-        outputDirectory: '.next',
-      },
-    });
-
-    console.log('Deployment started:', deployment.url);
-    
-    // Wait for deployment to complete
-    const status = await deployment.waitForReady();
-    console.log('Deployment status:', status);
-    console.log('Live URL:', `https://${deployment.url}`);
+    })) {
+      console.log(event.type, event.payload);
+      
+      if (event.type === 'created') {
+        deploymentUrl = event.payload.url;
+        console.log('Deployment started:', deploymentUrl);
+      }
+      
+      if (event.type === 'ready') {
+        deploymentState = 'ready';
+        console.log('Deployment completed successfully');
+        if (deploymentUrl) {
+          console.log('Live URL:', `https://${deploymentUrl}`);
+        }
+        break;
+      }
+      
+      if (event.type === 'error') {
+        throw new Error(`Deployment error: ${JSON.stringify(event.payload)}`);
+      }
+    }
   } catch (error) {
     console.error('Deployment failed:', error);
     process.exit(1);

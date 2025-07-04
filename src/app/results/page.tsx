@@ -1,12 +1,12 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense, useCallback, useMemo } from "react";
+import { useState, useEffect, Suspense, useCallback, memo, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AuroraBackground } from "@/components/ui/aurora-background";
-import AppTile from "@/components/AppTile";
 import CodePreviewPanel from "@/components/CodePreviewPanel";
+import IsolatedCodePreview from "@/components/IsolatedCodePreview";
 import { BrowserContainer } from "@/components/ui/browser-container";
 import { useTheme } from "@/context/ThemeContext";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -14,7 +14,7 @@ import PromptInput from "@/components/DevTools/PromptInput";
 
 import VoiceInput from "@/components/DevTools/VoiceInput";
 import FullscreenPreview from "@/components/FullscreenPreview";
-import MockDeployButton from "@/components/MockDeployButton";
+import DeployButton from "@/components/DeployButton";
 import { SignupModal } from "@/components/SignupModal";
 import styled from "styled-components";
 
@@ -53,6 +53,105 @@ const LoadingProgress = styled(motion.div)`
 const ShortLoadingBar = styled(LoadingBar)`
   max-width: 300px;
 `;
+
+// Memoized grid item component to prevent re-renders
+const GridItem = memo(function GridItem({ 
+  title, 
+  index, 
+  isSelected,
+  isLoading,
+  code,
+  theme,
+  onTileClick,
+  onMaximize,
+  onCodeChange
+}: {
+  title: string;
+  index: number;
+  isSelected: boolean;
+  isLoading: boolean;
+  code: string;
+  theme: "light" | "dark";
+  onTileClick: (index: number) => void;
+  onMaximize: (index: number) => void;
+  onCodeChange: (index: number, newCode: string) => void;
+}) {
+  // Create stable callbacks
+  const handleTileClickStable = useCallback(() => {
+    onTileClick(index);
+  }, [onTileClick, index]);
+  
+  const handleMaximizeStable = useCallback(() => {
+    onMaximize(index);
+  }, [onMaximize, index]);
+  
+  const handleCodeChangeStable = useCallback((newCode: string) => {
+    onCodeChange(index, newCode);
+  }, [onCodeChange, index]);
+
+  return (
+    <motion.div
+      className={`rounded-lg overflow-hidden border ${
+        isSelected
+          ? theme === "dark"
+            ? "border-indigo-500/50 ring-2 ring-indigo-500/30"
+            : "border-indigo-500 ring-2 ring-indigo-300/50"
+          : theme === "dark"
+            ? "border-gray-700"
+            : "border-gray-200"
+      } transition-all duration-200 cursor-pointer`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+      onClick={handleTileClickStable}
+    >
+      <div className="h-[200px] sm:h-[250px] md:h-[300px]">
+        <BrowserContainer
+          theme={theme}
+          title={title}
+          onMaximize={handleMaximizeStable}
+        >
+          {isLoading ? (
+            <LoadingContainer>
+              <LoadingTitle>Generating</LoadingTitle>
+              <LoadingBar>
+                <LoadingProgress
+                  animate={{
+                    x: ["-100%", "100%"],
+                  }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 1.5,
+                    ease: "linear",
+                  }}
+                />
+              </LoadingBar>
+              <ShortLoadingBar>
+                <LoadingProgress
+                  animate={{
+                    x: ["-100%", "100%"],
+                  }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 2,
+                    ease: "linear",
+                    delay: 0.2,
+                  }}
+                />
+              </ShortLoadingBar>
+            </LoadingContainer>
+          ) : (
+            <IsolatedCodePreview
+              code={code || ""}
+              theme={theme}
+              showControls={false}
+            />
+          )}
+        </BrowserContainer>
+      </div>
+    </motion.div>
+  );
+});
 
 // Move constants outside component to prevent recreation on every render
 const MAX_APPS = 6; // Maximum number of apps that can be generated
@@ -94,9 +193,12 @@ function ResultsContent() {
   const [editedResults, setEditedResults] = useState<string[]>(
     new Array(numGenerations).fill("")
   );
-  const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [projects, setProjects] = useState<any[]>(
+    new Array(numGenerations).fill(null)
+  );
+  const [isPromptOpen] = useState(false);
 
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [isVoiceEnabled] = useState(true);
   const [showSignupModal, setShowSignupModal] = useState(false);
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   const { theme } = useTheme();
@@ -119,6 +221,14 @@ function ResultsContent() {
   }, []);
 
   const generateApp = useCallback(async (index: number, promptText: string) => {
+    // Prevent multiple calls for the same index
+    setLoadingStates((prev) => {
+      if (prev[index]) return prev; // Already loading
+      const newStates = [...prev];
+      newStates[index] = true;
+      return newStates;
+    });
+
     try {
       const framework = getFramework(appTitles[index]);
 
@@ -153,6 +263,15 @@ function ResultsContent() {
         return newResults;
       });
 
+      // Store the Next.js project data if available
+      if (data.project) {
+        setProjects((prev) => {
+          const newProjects = [...prev];
+          newProjects[index] = data.project;
+          return newProjects;
+        });
+      }
+
 
     } catch (err) {
       setError(
@@ -165,25 +284,35 @@ function ResultsContent() {
         return newStates;
       });
     }
-  }, [getFramework, variations]);
+  }, [getFramework]);
 
   // Handler functions
-  const handleNewPrompt = async (prompt: string, isUpdate: boolean = false, chaosMode: boolean = false) => {
+  const handleNewPrompt = async (prompt: string) => {
     // For now, just redirect to new generation
     window.location.href = `/results?prompt=${encodeURIComponent(prompt)}`;
   };
 
   const handleVoiceInput = (text: string) => {
-    handleNewPrompt(text, true, false);
+    handleNewPrompt(text);
   };
 
-  const handleCodeChange = (newCode: string) => {
-    const newResults = [...editedResults];
-    newResults[selectedAppIndex] = newCode;
-    setEditedResults(newResults);
-  };
+  const handleCodeChange = useCallback((newCode: string) => {
+    setEditedResults(prev => {
+      const newResults = [...prev];
+      newResults[selectedAppIndex] = newCode;
+      return newResults;
+    });
+  }, [selectedAppIndex]);
 
-  const handleTileClick = (index: number) => {
+  const handleGridItemCodeChange = useCallback((index: number, newCode: string) => {
+    setEditedResults(prev => {
+      const newResults = [...prev];
+      newResults[index] = newCode;
+      return newResults;
+    });
+  }, []);
+
+  const handleTileClick = useCallback((index: number) => {
     setSelectedAppIndex(index);
     setTimeout(() => {
       document.getElementById('detailed-view')?.scrollIntoView({
@@ -191,29 +320,45 @@ function ResultsContent() {
         block: 'start'
       });
     }, 100);
-  };
+  }, []);
 
-  const handleMaximize = () => {
+  const handleMaximize = useCallback(() => {
     setIsFullscreenOpen(true);
-  };
+  }, []);
 
-  const handleCloseFullscreen = () => {
+  const handleMaximizeWithIndex = useCallback((index: number) => {
+    setSelectedAppIndex(index);
+    setIsFullscreenOpen(true);
+  }, []);
+
+  const handleCloseFullscreen = useCallback(() => {
     setIsFullscreenOpen(false);
-  };
+  }, []);
 
+  // Get prompt from searchParams
+  const prompt = searchParams.get("prompt");
+  
+  // Use a ref to track if generation has started
+  const generationStarted = useRef(false);
+  
   useEffect(() => {
-    const prompt = searchParams.get("prompt");
+    // Skip if already started generation
+    if (generationStarted.current) return;
+    
     if (!prompt) {
       setError("No prompt provided");
       setLoadingStates(new Array(numGenerations).fill(false));
       return;
     }
 
+    // Mark generation as started
+    generationStarted.current = true;
+
     // Generate all apps
     for (let i = 0; i < numGenerations; i++) {
       generateApp(i, prompt);
     }
-  }, [searchParams, generateApp, numGenerations]);
+  }, [prompt, numGenerations, generateApp]);
 
   return (
     <AuroraBackground>
@@ -245,11 +390,21 @@ function ResultsContent() {
               }`}
             >
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-white/90 to-rose-300 ">
-                Chaos Coder
+                vibeweb.app
               </span>
             </motion.h1>
             <div className="flex items-center gap-3 sm:gap-4">
               <ThemeToggle />
+              <Link
+                href="/deployments"
+                className={`hover:underline transition-colors ${
+                  theme === "dark"
+                    ? "text-gray-300 hover:text-white"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                My Projects
+              </Link>
               <Link
                 href="/"
                 className={`hover:underline transition-colors ${
@@ -338,9 +493,11 @@ function ResultsContent() {
                           theme={theme}
                           onMaximize={handleMaximize}
                           deployButton={
-                            <MockDeployButton
+                            <DeployButton
                               code={editedResults[selectedAppIndex] || ""}
-                              theme={theme}
+                              appTitle={appTitles[selectedAppIndex]}
+                              project={projects[selectedAppIndex]}
+                              className=""
                             />
                           }
                         />
@@ -353,76 +510,18 @@ function ResultsContent() {
               {/* Grid of all app previews - moved below detailed view */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {appTitles.slice(0, numGenerations).map((title, index) => (
-                  <motion.div
+                  <GridItem
                     key={title}
-                    className={`rounded-lg overflow-hidden border ${
-                      selectedAppIndex === index
-                        ? theme === "dark"
-                          ? "border-indigo-500/50 ring-2 ring-indigo-500/30"
-                          : "border-indigo-500 ring-2 ring-indigo-300/50"
-                        : theme === "dark"
-                          ? "border-gray-700"
-                          : "border-gray-200"
-                    } transition-all duration-200 cursor-pointer`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={() => handleTileClick(index)}
-                  >
-                    <div className="h-[200px] sm:h-[250px] md:h-[300px]">
-                      <BrowserContainer
-                        theme={theme}
-                        title={title}
-                        onMaximize={() => {
-                          setSelectedAppIndex(index);
-                          handleMaximize();
-                        }}
-                      >
-                        {loadingStates[index] ? (
-                          <LoadingContainer>
-                            <LoadingTitle>Generating</LoadingTitle>
-                            <LoadingBar>
-                              <LoadingProgress
-                                animate={{
-                                  x: ["-100%", "100%"],
-                                }}
-                                transition={{
-                                  repeat: Infinity,
-                                  duration: 1.5,
-                                  ease: "linear",
-                                }}
-                              />
-                            </LoadingBar>
-                            <ShortLoadingBar>
-                              <LoadingProgress
-                                animate={{
-                                  x: ["-100%", "100%"],
-                                }}
-                                transition={{
-                                  repeat: Infinity,
-                                  duration: 2,
-                                  ease: "linear",
-                                  delay: 0.2,
-                                }}
-                              />
-                            </ShortLoadingBar>
-                          </LoadingContainer>
-                        ) : (
-                          <CodePreviewPanel
-                            code={editedResults[index] || ""}
-                            onChange={(newCode) => {
-                              const newResults = [...editedResults];
-                              newResults[index] = newCode;
-                              setEditedResults(newResults);
-                            }}
-                            isLoading={loadingStates[index]}
-                            theme={theme}
-                            showControls={false}
-                          />
-                        )}
-                      </BrowserContainer>
-                    </div>
-                  </motion.div>
+                    title={title}
+                    index={index}
+                    isSelected={selectedAppIndex === index}
+                    isLoading={loadingStates[index]}
+                    code={editedResults[index]}
+                    theme={theme}
+                    onTileClick={handleTileClick}
+                    onMaximize={handleMaximizeWithIndex}
+                    onCodeChange={handleGridItemCodeChange}
+                  />
                 ))}
               </div>
             </div>

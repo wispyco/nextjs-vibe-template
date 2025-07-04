@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { HeroGeometric } from "@/components/ui/shape-landing-hero";
 import { RainbowButton } from "@/components/ui/rainbow-button";
@@ -10,7 +11,6 @@ import {
   FaTasks,
   FaBlog,
   FaUserTie,
-  FaCalendarAlt,
   FaStore,
   FaRobot,
   FaQuestionCircle,
@@ -19,9 +19,8 @@ import {
 } from "react-icons/fa";
 
 // Signup Modal Component
-export function SignupModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+function SignupModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { theme } = useTheme();
-  const router = useRouter();
   
   if (!isOpen) return null;
   
@@ -52,7 +51,7 @@ export function SignupModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
         </button>
         
         <h2 className="text-xl font-bold mb-4">Free Limit Reached</h2>
-        <p className="mb-6">You've reached the limit of 25 free generations. Create an account to continue using our service.</p>
+        <p className="mb-6">You&apos;ve reached the limit of 25 free generations. Create an account to continue using our service.</p>
         
         <div className="flex flex-col gap-4">
           <a 
@@ -180,10 +179,43 @@ export default function Home() {
           onClose={() => setShowSignupModal(false)}
         />
       )}
+      
+      {/* Settings button in top right */}
+      <div className="absolute top-4 right-4 z-20 flex gap-2">
+        <Link 
+          href="/deployments"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white transition-colors text-sm font-medium"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          My Projects
+        </Link>
+        <Link 
+          href="/landing"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white transition-colors text-sm font-medium"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          About
+        </Link>
+        <Link 
+          href="/settings/vercel"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-background/80 backdrop-blur-sm border hover:bg-accent transition-colors text-sm font-medium"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Integrations
+        </Link>
+      </div>
+      
       <div className="relative z-10">
         <HeroGeometric
           badge=""
-          title1="Chaos Coder"
+          title1="vibeweb.app"
           title2={`${numGenerations}x Dev`}
           numWebsites={numGenerations}
         >
@@ -285,16 +317,7 @@ export default function Home() {
                 </RainbowButton>
                 
                 <div className="mt-4 text-center text-sm text-gray-400">
-                  <p>This is an early preview. Open source at{" "}
-                    <a 
-                      href="https://github.com/aj47/chaos-coder" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 underline"
-                    >
-                      github.com/aj47/chaos-coder
-                    </a>
-                  </p>
+                  <p>This is an early preview of vibeweb.app</p>
                 </div>
               </div>
             </div>
