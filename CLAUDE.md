@@ -122,6 +122,10 @@ NEXT_PUBLIC_APP_URL=          # Required: Your app's base URL (e.g., https://vib
 
 # AI Integration
 CLAUDE_API_KEY=               # Required for /api/chat/claude endpoint
+ANTHROPIC_API_KEY=            # Required for /api/agent and /api/scaffold endpoints
+
+# GitHub Integration (for agent tools)
+GITHUB_PAT=                   # Required: Personal Access Token for Git operations
 
 # Vercel Integration (OAuth)
 VERCEL_CLIENT_ID=             # Required: From Vercel Integration dashboard
@@ -191,7 +195,7 @@ NEXT_PUBLIC_PUSHER_CLUSTER=   # Required: Same as PUSHER_CLUSTER
    - **Logo**: Upload a 32x32 PNG icon
    - **Redirect URL**: 
      - Production: `https://your-app.com/api/auth/vercel/callback`
-     - Development: `http://localhost:3000/api/auth/vercel/callback`
+     - Development: `https://8dbd-149-22-81-43.ngrok-free.app/api/auth/vercel/callback`
 
 3. **Configure OAuth Scopes**
    ```
@@ -236,7 +240,7 @@ The Integration approach gives you:
 ### Running the Development Server
 ```bash
 npm run dev
-# Opens at http://localhost:3000
+# Opens at https://8dbd-149-22-81-43.ngrok-free.app
 ```
 
 ### Testing AI Generation Locally

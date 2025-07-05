@@ -34,18 +34,18 @@ export default function TestVercelPage() {
 
   const testOAuthDirectly = () => {
     const clientId = process.env.NEXT_PUBLIC_VERCEL_CLIENT_ID || 'oac_PdrqV45RUU42aFKzLXQhKglu';
-    const redirectUri = encodeURIComponent('http://localhost:3000/api/auth/vercel/callback');
+    const redirectUri = encodeURIComponent('https://8dbd-149-22-81-43.ngrok-free.app/api/auth/vercel/callback');
     const scope = encodeURIComponent('read:projects write:projects read:deployments write:deployments offline_access');
-    
+
     const url = `https://vercel.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
-    
+
     window.open(url, '_blank');
   };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <h1 className="text-3xl font-bold mb-8">Test Vercel Integration</h1>
-      
+
       <div className="space-y-8">
         {/* Test OAuth Flow */}
         <div className="bg-card rounded-lg p-6 border">
@@ -61,7 +61,7 @@ export default function TestVercelPage() {
           </button>
           <div className="mt-4 p-4 bg-muted rounded text-xs">
             <p>Client ID: oac_PdrqV45RUU42aFKzLXQhKglu</p>
-            <p>Redirect: http://localhost:3000/api/auth/vercel/callback</p>
+            <p>Redirect: https://8dbd-149-22-81-43.ngrok-free.app/api/auth/vercel/callback</p>
           </div>
         </div>
 

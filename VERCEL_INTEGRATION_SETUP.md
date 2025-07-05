@@ -9,7 +9,7 @@
 3. Fill in:
    - **Integration Name**: vibeweb-app (or any unique name)
    - **Logo**: Upload any 32x32 PNG image
-   - **Redirect URL**: `http://localhost:3000/api/auth/vercel/callback`
+   - **Redirect URL**: `https://8dbd-149-22-81-43.ngrok-free.app/api/auth/vercel/callback`
    - **Description**: Deploy generated web apps to Vercel
 
 ### 2. Configure OAuth Scopes
@@ -41,7 +41,7 @@ IMPORTANT: After creating the integration, you must install it:
 ### 5. Test the Integration
 
 1. Restart your Next.js dev server: `npm run dev`
-2. Go to: http://localhost:3000/settings/vercel
+2. Go to: https://8dbd-149-22-81-43.ngrok-free.app/settings/vercel
 3. Click "Install Vercel Integration"
 
 ## Troubleshooting

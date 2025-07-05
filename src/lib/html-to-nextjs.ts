@@ -15,7 +15,7 @@ export function convertHtmlToNextJs(
   // Extract metadata from HTML
   const title = root.querySelector('title')?.textContent || projectName;
   const metaTags = root.querySelectorAll('meta');
-  
+
   // Extract styles
   const styleTags = root.querySelectorAll('style');
   const externalStyles = root.querySelectorAll('link[rel="stylesheet"]');
@@ -240,7 +240,7 @@ pnpm dev
 bun dev
 \`\`\`
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [https://8dbd-149-22-81-43.ngrok-free.app](https://8dbd-149-22-81-43.ngrok-free.app) with your browser to see the result.
 
 You can start editing the page by modifying \`app/page.tsx\`. The page auto-updates as you edit the file.
 
@@ -309,27 +309,27 @@ function createPageComponent(
 
   // Create component with or without client-side interactivity
   const useClient = hasInteractivity ? "'use client'\n\n" : '';
-  
+
   // Clean up JSX content
   const cleanJsxContent = jsxContent.trim();
-  
+
   // Build the component
   let component = `${useClient}export default function Home() {`;
-  
+
   if (pageLogic) {
     component += `\n  // TODO: Convert this JavaScript to React hooks and event handlers\n${pageLogic}\n`;
   }
-  
+
   component += `\n  return (\n`;
-  
+
   if (componentStyles) {
     // Remove problematic style jsx for now - we'll add styles to globals.css instead
     component += `    <div>\n      ${cleanJsxContent}\n    </div>\n`;
   } else {
     component += `    <>\n      ${cleanJsxContent}\n    </>\n`;
   }
-  
+
   component += `  )\n}`;
-  
+
   return component;
 }
